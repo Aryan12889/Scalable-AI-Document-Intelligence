@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rag_knowledge_base"
+version = "0.1.0"
+description = "High-level, scalable RAG Knowledge Base application"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.100.0",
+    "uvicorn[standard]>=0.20.0",
+    "celery[redis]>=5.3.0",
+    "redis>=5.0.0",
+    "qdrant-client>=1.7.0",
+    "llama-index>=0.10.0",
+    "llama-index-llms-gemini",
+    "llama-index-embeddings-gemini",
+    "llama-index-vector-stores-qdrant",
+    "llama-index-readers-file",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "python-multipart",
+    "arize-phoenix>=1.0.0",
+    "openinference-instrumentation-llama-index",
+    "opentelemetry-exporter-otlp",
+    "streamlit>=1.30.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "httpx",
+    "bandit",
+    "safety"
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
