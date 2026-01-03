@@ -6,7 +6,7 @@ from llama_index.vector_stores.qdrant import QdrantVectorStore
 from llama_index.core.postprocessor import SentenceTransformerRerank
 from llama_index.core.indices.query.query_transform import HyDEQueryTransform
 from llama_index.core.query_engine import TransformQueryEngine
-from llama_index.embeddings.gemini import GeminiEmbedding
+from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.llms.gemini import Gemini
 import qdrant_client
 
@@ -18,13 +18,17 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 def get_rag_engine():
     # 1. Setup Client & Store
-    client = qdrant_client.QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
+    if os.getenv("QDRANT_LOCATION"):
+        client = qdrant_client.QdrantClient(path=os.getenv("QDRANT_LOCATION"))
+    else:
+        client = qdrant_client.QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
+        
     vector_store = QdrantVectorStore(client=client, collection_name=QDRANT_COLLECTION)
     
     # 2. Setup Embeddings & LLM
     if GEMINI_API_KEY:
-        Settings.embed_model = GeminiEmbedding(model_name=os.getenv("EMBEDDING_MODEL", "models/embedding-001"))
-        Settings.llm = Gemini(model="models/gemini-1.5-pro-latest", api_key=GEMINI_API_KEY)
+        Settings.embed_model = HuggingFaceEmbedding(model_name="BAAI/bge-base-en-v1.5")
+        Settings.llm = Gemini(model="models/gemini-2.5-flash", api_key=GEMINI_API_KEY)
 
     # 3. Create Index (from existing store)
     index = VectorStoreIndex.from_vector_store(vector_store=vector_store)
@@ -44,7 +48,7 @@ def get_rag_engine():
     
     vector_retriever = VectorIndexRetriever(
         index=index,
-        similarity_top_k=10,  # Retrieve more for reranking
+        similarity_top_k=20,  # Increase to 20 to cast a wider net
     )
 
     # 5. Reranker
@@ -52,7 +56,7 @@ def get_rag_engine():
     # 'BAAI/bge-reranker-base' is good standard.
     reranker = SentenceTransformerRerank(
         model="cross-encoder/ms-marco-MiniLM-L-12-v2", 
-        top_n=3
+        top_n=5 # Increase to 5 to keep more context
     )
 
     # 6. Response Synthesizer
@@ -66,7 +70,9 @@ def get_rag_engine():
     )
 
     # 8. HyDE (Hypothetical Document Embeddings)
-    hyde = HyDEQueryTransform(include_original=True)
-    hyde_query_engine = TransformQueryEngine(query_engine, query_transform=hyde)
+    # DISABLE strictly for now. HyDE often hallucinates specific numbers (like 60,000) 
+    # in the hypothetical answer, causing the search to miss the Real number.
+    # hyde = HyDEQueryTransform(include_original=True)
+    # hyde_query_engine = TransformQueryEngine(query_engine, query_transform=hyde)
 
-    return hyde_query_engine
+    return query_engine

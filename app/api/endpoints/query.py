@@ -10,6 +10,7 @@ class QueryRequest(BaseModel):
 
 class SourceNode(BaseModel):
     filename: str
+    page_label: str
     score: float
     text: str
 
@@ -26,9 +27,13 @@ async def query_knowledge_base(request: QueryRequest):
         sources = []
         for node in response.source_nodes:
             # Metadata might be None if not found
-            fname = node.metadata.get("filename", "unknown") if node.metadata else "unknown"
+            meta = node.metadata if node.metadata else {}
+            fname = meta.get("filename", "unknown")
+            page = meta.get("page_label", "1")
+            
             sources.append(SourceNode(
                 filename=fname,
+                page_label=page,
                 score=node.score if node.score else 0.0,
                 text=node.node.get_content()[:200] + "..." # Snippet
             ))

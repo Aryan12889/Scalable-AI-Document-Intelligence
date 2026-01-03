@@ -24,7 +24,11 @@ dependencies = [
     "arize-phoenix>=1.0.0",
     "openinference-instrumentation-llama-index",
     "opentelemetry-exporter-otlp",
-    "streamlit>=1.30.0"
+    "streamlit>=1.30.0",
+    "torch",
+    "sentence-transformers",
+    "llama-index-embeddings-huggingface",
+    "pypdf"
 ]
 
 [project.optional-dependencies]

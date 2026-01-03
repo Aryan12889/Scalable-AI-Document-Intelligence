@@ -1,10 +1,12 @@
 import streamlit as st
 import requests
 import json
+import os
 
-ST_API_URL = "http://localhost:8000/api/v1"
+ST_API_URL = os.getenv("API_URL", "http://localhost:8000/api/v1")
 
 st.set_page_config(page_title="RAG Brain", layout="wide")
+st.write(f"DEBUG: API URL is {ST_API_URL}")
 
 st.title("🧠 RAG Knowledge Base")
 
@@ -39,7 +41,8 @@ with tab2:
                     st.divider()
                     st.subheader("Sources")
                     for src in data['sources']:
-                        with st.expander(f"{src['filename']} (Score: {src['score']:.2f})"):
+                        page_info = f" (Page {src['page_label']})" if src.get('page_label') else ""
+                        with st.expander(f"{src['filename']}{page_info} - Score: {src['score']:.2f}"):
                             st.text(src['text'])
                 else:
                     st.error(f"Error: {res.text}")

@@ -12,7 +12,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 2GB  # Dedicated memory for vector indexing
+          memory: 2GB # Dedicated memory for vector indexing
 
   # Message Broker for Async Tasks
   redis:
@@ -28,13 +28,13 @@ services:
     depends_on:
       - qdrant
       - redis
-    env_file: .env.example
+    env_file: .env
     ports:
       - "8000:8000"
     deploy:
       resources:
         limits:
-          memory: 3GB  # High memory for reranking and query processing
+          memory: 3GB # High memory for reranking and query processing
 
   # Background Worker (Celery)
   worker:
@@ -44,11 +44,25 @@ services:
     depends_on:
       - redis
       - qdrant
-    env_file: .env.example
+    env_file: .env
     deploy:
       resources:
         limits:
-          memory: 3GB  # Memory for PDF parsing and semantic chunking
+          memory: 3GB # Memory for PDF parsing and semantic chunking
+
+  # Frontend (Streamlit)
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rag_frontend
+    command: streamlit run frontend/app.py --server.port 8501 --server.address 0.0.0.0
+    ports:
+      - "8501:8501"
+    environment:
+      - API_URL=http://api:8000/api/v1
+    depends_on:
+      - api
 
 # Persistent storage for your data
 volumes:
