@@ -3,10 +3,8 @@ from llama_index.core import VectorStoreIndex, Settings, get_response_synthesize
 from llama_index.core.retrievers import VectorIndexRetriever
 from llama_index.core.query_engine import RetrieverQueryEngine
 from llama_index.vector_stores.qdrant import QdrantVectorStore
-from llama_index.core.postprocessor import SentenceTransformerRerank
-from llama_index.core.indices.query.query_transform import HyDEQueryTransform
 from llama_index.core.query_engine import TransformQueryEngine
-from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+from llama_index.embeddings.fastembed import FastEmbedEmbedding
 from llama_index.llms.gemini import Gemini
 import qdrant_client
 
@@ -26,12 +24,19 @@ def get_rag_engine():
     vector_store = QdrantVectorStore(client=client, collection_name=QDRANT_COLLECTION)
     
     # 2. Setup Embeddings & LLM
+    # 2. Setup Embeddings & LLM
+    # Always use FastEmbed to avoid Torch dependency fallback
+    embed_model = FastEmbedEmbedding(model_name="BAAI/bge-base-en-v1.5")
+    Settings.embed_model = embed_model
+    
     if GEMINI_API_KEY:
-        Settings.embed_model = HuggingFaceEmbedding(model_name="BAAI/bge-base-en-v1.5")
         Settings.llm = Gemini(model="models/gemini-2.5-flash", api_key=GEMINI_API_KEY)
+    else:
+        print("WARNING: GEMINI_API_KEY not found. LLM might fail.")
 
     # 3. Create Index (from existing store)
-    index = VectorStoreIndex.from_vector_store(vector_store=vector_store)
+    # Pass embed_model explicitly to avoid any global Settings fallback
+    index = VectorStoreIndex.from_vector_store(vector_store=vector_store, embed_model=embed_model)
 
     # 4. Retriever: Hybrid Search (if supported by store/client, Qdrant supports it)
     # Note: LlamaIndex Qdrant integration handles hybrid if configured.
@@ -52,13 +57,10 @@ def get_rag_engine():
     )
 
     # 5. Reranker
-    # Using a small, fast cross-encoder. 
-    # 'BAAI/bge-reranker-base' is good standard.
-    reranker = SentenceTransformerRerank(
-        model="cross-encoder/ms-marco-MiniLM-L-12-v2", 
-        top_n=5 # Increase to 5 to keep more context
-    )
-
+    # We removed SentenceTransformerRerank because it requires 'torch' (Heavy).
+    # For now, we rely on the high quality of FastEmbed + Qdrant.
+    # Future Upgrade: Use 'FlashRank' (ONNX) or 'LLMRerank' (Gemini).
+    
     # 6. Response Synthesizer
     response_synthesizer = get_response_synthesizer()
 
@@ -66,13 +68,7 @@ def get_rag_engine():
     query_engine = RetrieverQueryEngine(
         retriever=vector_retriever,
         response_synthesizer=response_synthesizer,
-        node_postprocessors=[reranker],
+        node_postprocessors=[], # No heavy reranker for Turbo mode
     )
-
-    # 8. HyDE (Hypothetical Document Embeddings)
-    # DISABLE strictly for now. HyDE often hallucinates specific numbers (like 60,000) 
-    # in the hypothetical answer, causing the search to miss the Real number.
-    # hyde = HyDEQueryTransform(include_original=True)
-    # hyde_query_engine = TransformQueryEngine(query_engine, query_transform=hyde)
 
     return query_engine

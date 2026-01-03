@@ -9,23 +9,27 @@ graph TD
     User[Client] -->|Upload| API[FastAPI]
     API -->|Queue| Redis
     Redis -->|Process| Worker[Celery Worker]
-    Worker -->|Semantic Chunking| LlamaIndex
-    LlamaIndex -->|Embed| Gemini[Gemini 3 Pro]
-    Gemini -->|Vectors| Qdrant[Vector DB]
+    Worker -->|FastEmbed (ONNX)| Qdrant[Vector DB]
+    Worker -->|PyMuPDF (Images)| Storage[Disk]
     
     User -->|Query| API
-    API -->|HyDE + Hybrid Search| Qdrant
-    Qdrant -->|Context| Reranker[BGE Reranker]
-    Reranker -->|Refined Context| Gemini
+    API -->|Dense Search| Qdrant
+    Qdrant -->|Context| Gemini[Gemini 2.5 Flash]
     Gemini -->|Answer| User
+    User -->|View Context| API
+    API -->|Get Page Image| User
 ```
 
 ## Features
-- **Async Ingestion**: Queued processing with Redis/Celery.
-- **Advanced Retrieval**: HyDE (Hypothetical Document Embeddings) coverage + Hybrid Search.
-- **Precise Ranking**: Cross-Encoder Reranking for 99% accuracy.
-- **Deep Observability**: Integration with Arize Phoenix (OpenTelemetry).
-- **Scalability**: Dockerized with resource limits and persistence.
+- **Turbo Backend**: 
+    - **Embeddings**: FastEmbed (BAAI/bge-base-en-v1.5) running on CPU (ONNX). No Torch dependency.
+    - **Parsing**: PyMuPDF (Fitz) for 10x faster PDF processing.
+- **High-Fidelity UI**: 
+    - **Context Popup**: View actual **PDF page images** (screenshots) instead of raw text.
+    - **Persistent Chat**: Robust state management using Streamlit Callbacks.
+- **Scalability**: 
+    - **Dockerized**: Full hot-reloading support (`docker-compose.yml` with mounts).
+    - **Async**: Celery + Redis for background ingestion.
 
 ## Setup
 

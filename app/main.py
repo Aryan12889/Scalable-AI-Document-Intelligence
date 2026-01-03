@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.api.endpoints import ingest, query
+from app.api.endpoints import ingest, query, documents
 from app.api import dependencies
 from app.core.events import lifespan
 from app.core.config import settings
@@ -11,6 +11,7 @@ app = FastAPI(
 
 app.include_router(ingest.router, prefix="/api/v1", tags=["Ingestion"])
 app.include_router(query.router, prefix="/api/v1", tags=["Retrieval"])
+app.include_router(documents.router, prefix="/api/v1", tags=["Documents"])
 app.include_router(dependencies.router, tags=["Health"])
 
 @app.get("/")

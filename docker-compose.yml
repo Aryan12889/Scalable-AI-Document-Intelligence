@@ -29,6 +29,10 @@ services:
       - qdrant
       - redis
     env_file: .env
+    volumes:
+      - ./.env:/app/.env
+      - ./data/uploads:/app/data/uploads
+      - ./app:/app/app
     ports:
       - "8000:8000"
     deploy:
@@ -45,6 +49,9 @@ services:
       - redis
       - qdrant
     env_file: .env
+    volumes:
+      - ./.env:/app/.env
+      - ./data/uploads:/app/data/uploads
     deploy:
       resources:
         limits:
@@ -61,6 +68,8 @@ services:
       - "8501:8501"
     environment:
       - API_URL=http://api:8000/api/v1
+    volumes:
+      - ./frontend:/app/frontend
     depends_on:
       - api
 

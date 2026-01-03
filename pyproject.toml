@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rag_knowledge_base"
-version = "0.1.0"
+version = "1.0.0"
 description = "High-level, scalable RAG Knowledge Base application"
 requires-python = ">=3.10"
 dependencies = [
@@ -24,11 +24,10 @@ dependencies = [
     "arize-phoenix>=1.0.0",
     "openinference-instrumentation-llama-index",
     "opentelemetry-exporter-otlp",
-    "streamlit>=1.30.0",
-    "torch",
-    "sentence-transformers",
-    "llama-index-embeddings-huggingface",
-    "pypdf"
+    "streamlit>=1.35.0",
+    "fastembed",
+    "llama-index-embeddings-fastembed",
+    "pymupdf"
 ]
 
 [project.optional-dependencies]
