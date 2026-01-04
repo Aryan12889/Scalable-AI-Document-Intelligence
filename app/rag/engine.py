@@ -14,7 +14,9 @@ QDRANT_PORT = int(os.getenv("QDRANT_PORT", 6333))
 QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION_NAME", "knowledge_base")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-def get_rag_engine():
+from llama_index.core.vector_stores import MetadataFilters, MetadataFilter, FilterOperator, FilterCondition
+
+def get_rag_engine(session_id: str = None):
     # 1. Setup Client & Store
     if os.getenv("QDRANT_LOCATION"):
         client = qdrant_client.QdrantClient(path=os.getenv("QDRANT_LOCATION"))
@@ -23,7 +25,6 @@ def get_rag_engine():
         
     vector_store = QdrantVectorStore(client=client, collection_name=QDRANT_COLLECTION)
     
-    # 2. Setup Embeddings & LLM
     # 2. Setup Embeddings & LLM
     # Always use FastEmbed to avoid Torch dependency fallback
     embed_model = FastEmbedEmbedding(model_name="BAAI/bge-base-en-v1.5")
@@ -38,29 +39,35 @@ def get_rag_engine():
     # Pass embed_model explicitly to avoid any global Settings fallback
     index = VectorStoreIndex.from_vector_store(vector_store=vector_store, embed_model=embed_model)
 
-    # 4. Retriever: Hybrid Search (if supported by store/client, Qdrant supports it)
-    # Note: LlamaIndex Qdrant integration handles hybrid if configured.
-    # For now, we stick to dense or "hybrid" if we enable sparse vectors.
-    # To keep it robust without sparse vector generation complexity on ingestion side 
-    # (which requires sparse embedding model), we might stick to Dense + Rerank 
-    # OR enable Qdrant's internal hybrid if available. 
-    # For this strict requirement "Hybrid Search (Vector + Keyword)", 
-    # we usually need a sparse embedding model (e.g. SPLADE or BM25).
-    # SIMPLIFICATION: We will use a standard Vector Retriever with High Similarity Top-K 
+    # 4. Construct Filters
+    # Logic: Search "static" files OR "user" files belonging to this session
+    filters = None
+    if session_id:
+        filters = MetadataFilters(
+            filters=[
+                MetadataFilter(key="category", value="static", operator=FilterOperator.EQ),
+                MetadataFilter(key="session_id", value=session_id, operator=FilterOperator.EQ),
+            ],
+            condition=FilterCondition.OR
+        )
+    else:
+        # If no session ID, only show static files
+        filters = MetadataFilters(
+            filters=[
+                MetadataFilter(key="category", value="static", operator=FilterOperator.EQ)
+            ]
+        )
+
+    # 5. Retriever: Hybrid Search (if supported by store/client, Qdrant supports it)
+    # We use a standard Vector Retriever with High Similarity Top-K 
     # and strong Reranker as the "Advanced RAG" proxy if sparse is too complex for "minutes" deployment.
-    # HOWEVER, User asked for Hybrid. Qdrant supports FastEmbed for sparse. 
-    # Let's assume Dense + Ranker is the primary path, but we configure `similarity_top_k` high.
     
     vector_retriever = VectorIndexRetriever(
         index=index,
         similarity_top_k=20,  # Increase to 20 to cast a wider net
+        filters=filters # Apply the session isolation filters
     )
 
-    # 5. Reranker
-    # We removed SentenceTransformerRerank because it requires 'torch' (Heavy).
-    # For now, we rely on the high quality of FastEmbed + Qdrant.
-    # Future Upgrade: Use 'FlashRank' (ONNX) or 'LLMRerank' (Gemini).
-    
     # 6. Response Synthesizer
     response_synthesizer = get_response_synthesizer()
 

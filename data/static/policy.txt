@@ -1,0 +1,3 @@
+This is a PERMANENT company policy document.
+It should be available to ALL users regardless of session.
+Security Regulation 101: All data is permanent here.

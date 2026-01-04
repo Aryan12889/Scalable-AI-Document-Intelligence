@@ -39,7 +39,7 @@ else:
     client = qdrant_client.QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
 
 @celery_app.task(bind=True)
-def process_document(self, file_content_b64: str, filename: str):
+def process_document(self, file_content_b64: str, filename: str, category: str = "user", session_id: str = None):
     """
     Process a document: decode, chunk (semantic), embed, and upsert to Qdrant.
     """
@@ -47,34 +47,51 @@ def process_document(self, file_content_b64: str, filename: str):
         # 1. Decode & Persist File
         content_bytes = base64.b64decode(file_content_b64)
         
-        # Ensure upload directory exists
-        upload_dir = pathlib.Path("/app/data/uploads")
-        upload_dir.mkdir(parents=True, exist_ok=True)
+        # Determine strict path based on category
+        if category == "static":
+            # Static files go to data/static (should exist)
+            base_dir = pathlib.Path("/app/data/static")
+            base_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            # User files go to data/uploads/{session_id}
+            if not session_id:
+                session_id = "default" # Fallback if None
+            base_dir = pathlib.Path(f"/app/data/uploads/{session_id}")
+            base_dir.mkdir(parents=True, exist_ok=True)
         
-        file_path = upload_dir / filename
+        file_path = base_dir / filename
         with open(file_path, "wb") as f:
             f.write(content_bytes)
 
         # 2. Extract Text using PyMuPDF (Turbo Mode)
         documents = []
+        # Common metadata
+        base_metadata = {
+            "filename": filename,
+            "category": category,
+            "session_id": session_id if session_id else ""
+        }
+        
         if filename.lower().endswith(".pdf"):
             with fitz.open(file_path) as doc:
                 for page in doc:
                     text = page.get_text()
                     # Create LlamaIndex Document
                     # Metadata for citation and context retrieval
+                    meta = base_metadata.copy()
+                    meta["page_label"] = str(page.number + 1)
+                    
                     llama_doc = Document(
                         text=text, 
-                        metadata={
-                            "filename": filename,
-                            "page_label": str(page.number + 1)
-                        }
+                        metadata=meta
                     )
                     documents.append(llama_doc)
         else:
             # Fallback for TXT/MD
             text = content_bytes.decode("utf-8", errors="ignore")
-            documents.append(Document(text=text, metadata={"filename": filename, "page_label": "1"}))
+            meta = base_metadata.copy()
+            meta["page_label"] = "1"
+            documents.append(Document(text=text, metadata=meta))
 
         # 3. Setup Qdrant Vector Store
         # Ensure collection exists
@@ -108,3 +125,12 @@ def process_document(self, file_content_b64: str, filename: str):
         if hasattr(self, 'retry'):
             self.retry(exc=e, countdown=10, max_retries=3)
         return {"status": "failure", "error": str(e)}
+
+@celery_app.task
+def run_cleanup_job():
+    """
+    Periodic task to clean up expired sessions.
+    """
+    from app.scripts.cleanup_sessions import cleanup_expired_sessions
+    cleanup_expired_sessions()
+    return "Cleanup Completed"

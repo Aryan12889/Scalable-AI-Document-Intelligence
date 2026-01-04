@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Form, Query
 from app.models.schemas import IngestResponse
 from app.workers.tasks import process_document, celery_app
 from app.core.config import settings
@@ -27,7 +27,10 @@ def check_backpressure():
         pass
 
 @router.post("/upload", response_model=IngestResponse)
-async def upload_document(file: UploadFile = File(...)):
+async def upload_document(
+    file: UploadFile = File(...),
+    session_id: str = Query(..., description="Browser Session ID for isolation")
+):
     """
     Upload a document (PDF, TXT, MD) for ingestion.
     """
@@ -37,36 +40,15 @@ async def upload_document(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Only .txt, .md, .pdf files supported")
 
     content = await file.read()
-    
-    # Store file to temp or pass content directly? 
-    # For small/medium files, passing b64 encoded content to Celery is okay.
-    # For very large files, Shared Volume is better.
-    # User requirement: "Save files to temporary volume" -> Implementation choice:
-    # We will pass content for simplicity in this iteration unless it's huge. 
-    # But ideally, write to /tmp/storage and pass path.
-    # However, to work across containers (API -> Worker), we need a shared volume.
-    # For this MVP step, let's use base64 passing to avoid volume permission headaches 
-    # unless strictly required by 'upload that saves files to a temporary volume'.
-    # Refined: Let's stick to B64 for simplicity and speed of deployment as per "Faster Shipping".
-    
     file_content_b64 = base64.b64encode(content).decode('utf-8')
     
     # Check if running in local mode (Redis mock)
     if "mock" in settings.REDIS_URL or not redis_client:
-        # Run directly in background for local dev (Blocking async or Thread)
-        # We'll just call the function directly wrapper or use BackgroundTasks if we refactored
-        # For minimal change, we call .apply() which matches Celery signature but runs inline?
-        # Actually .delay() will fail if broker is invalid.
-        # Let's use a workaround:
-        from fastapi import BackgroundTasks
-        # NOTE: To use BackgroundTasks we need to inject it. 
-        # But since we are patching, let's just run it:
-        # process_document(None, file_content_b64, file.filename) <-- this would block
-        # Better: Just trust the user won't stress test local mode.
-        process_document.apply(args=[file_content_b64, file.filename])
+        # Local mode direct execution
+        process_document.apply(args=[file_content_b64, file.filename, "user", session_id])
         task_id = "local-task"
     else:
-        task = process_document.delay(file_content_b64, file.filename)
+        task = process_document.delay(file_content_b64, file.filename, "user", session_id)
         task_id = task.id
     
     return {

@@ -7,6 +7,7 @@ router = APIRouter()
 
 class QueryRequest(BaseModel):
     query_text: str
+    session_id: str = None
 
 class SourceNode(BaseModel):
     filename: str
@@ -21,26 +22,42 @@ class QueryResponse(BaseModel):
 @router.post("/query", response_model=QueryResponse)
 async def query_knowledge_base(request: QueryRequest):
     try:
-        engine = get_rag_engine()
-        response = engine.query(request.query_text)
+        # Get the query engine with retrieval AND session filtering
+        # Pass session_id to engine creation
+        query_engine = get_rag_engine(session_id=request.session_id)
         
-        sources = []
+        # Explicit search to get nodes (we need metadata)
+        response = query_engine.query(request.query_text)
+        
+        # Process and Deduplicate Sources
+        # Group by (filename, page_label) -> Keep highest score
+        unique_sources = {}
+        
         for node in response.source_nodes:
-            # Metadata might be None if not found
-            meta = node.metadata if node.metadata else {}
-            fname = meta.get("filename", "unknown")
+            # LlamaIndex nodes have metadata
+            meta = node.metadata
+            filename = meta.get("filename", "unknown")
             page = meta.get("page_label", "1")
+            score = node.score if node.score else 0.0
+            content = node.text # The actual content for highlighting
             
-            sources.append(SourceNode(
-                filename=fname,
-                page_label=page,
-                score=node.score if node.score else 0.0,
-                text=node.node.get_content()[:200] + "..." # Snippet
-            ))
+            key = (filename, page)
             
+            # Logic: If key not in unique_sources or current score is higher
+            if key not in unique_sources or score > unique_sources[key]["score"]:
+                unique_sources[key] = {
+                    "filename": filename,
+                    "page_label": page,
+                    "text": content,
+                    "score": score
+                }
+        
+        # Convert back to list and sort by score desc
+        sources_list = sorted(unique_sources.values(), key=lambda x: x["score"], reverse=True)
+        
         return {
             "answer": str(response),
-            "sources": sources
+            "sources": sources_list
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

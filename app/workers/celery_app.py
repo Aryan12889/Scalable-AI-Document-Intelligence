@@ -17,3 +17,12 @@ celery_app.conf.update(
     timezone="UTC",
     enable_utc=True,
 )
+
+from celery.schedules import crontab
+
+celery_app.conf.beat_schedule = {
+    "cleanup-expired-sessions-every-day": {
+        "task": "app.workers.tasks.run_cleanup_job",
+        "schedule": crontab(minute=0, hour=3), # Run at 3:00 AM UTC
+    },
+}

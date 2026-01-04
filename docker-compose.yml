@@ -52,10 +52,24 @@ services:
     volumes:
       - ./.env:/app/.env
       - ./data/uploads:/app/data/uploads
+      - ./app:/app/app
     deploy:
       resources:
         limits:
           memory: 3GB # Memory for PDF parsing and semantic chunking
+
+  # Scheduler (Celery Beat)
+  scheduler:
+    build: .
+    container_name: celery_scheduler
+    command: celery -A app.workers.celery_app beat --loglevel=info
+    depends_on:
+      - redis
+    env_file: .env
+    volumes:
+      - ./.env:/app/.env
+      - ./app:/app/app
+
 
   # Frontend (Streamlit)
   frontend:
