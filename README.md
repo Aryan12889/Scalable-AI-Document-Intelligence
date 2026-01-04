@@ -20,7 +20,7 @@ graph TD
     API -->|Get Page Image| User
 ```
 
-## detailed Project Flow
+## Detailed Project Flow
 
 ```mermaid
 graph TD
