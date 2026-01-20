@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>RAG Brain Performance Analytics</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#2563EB", // Electric Blue
+                        "primary-light": "#EFF6FF", // Light Blue bg
+                        "primary-dark": "#1E40AF",
+                        danger: "#EF4444",
+                        success: "#10B981",
+                        warning: "#F59E0B",
+                        background: "#F3F4F6", // Light Gray
+                        surface: "#FFFFFF",    // White
+                        "text-main": "#111827", // Gray 900
+                        "text-secondary": "#4B5563", // Gray 600
+                        "text-muted": "#9CA3AF", // Gray 400
+                        border: "#E5E7EB", // Gray 200
+                    },
+                    fontFamily: {
+                        sans: ["Inter", "sans-serif"],
+                        display: ["Space Grotesk", "sans-serif"],
+                    },
+                    boxShadow: {
+                        'soft': '0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02)',
+                        'card': '0 0 0 1px rgba(0,0,0,0.03), 0 2px 8px rgba(0,0,0,0.04)',
+                    }
+                },
+            },
+        }
+    </script>
+    <style>
+        .custom-scroll::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        .custom-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #D1D5DB;
+            border-radius: 3px;
+        }
+
+        .custom-scroll::-webkit-scrollbar-thumb:hover {
+            background: #9CA3AF;
+        }
+    </style>
+</head>
+
+<body
+    class="bg-background dark:bg-gray-950 text-text-main dark:text-gray-100 font-sans overflow-hidden h-screen flex selection:bg-primary selection:text-white">
+
+    <!-- Theme Toggle FAB -->
+    <button
+        class="fixed bottom-6 right-6 p-3 rounded-full bg-surface border border-border shadow-lg text-text-muted hover:text-primary z-50 transition-transform hover:scale-110"
+        onclick="app.toggleTheme()">
+        <span class="material-icons-round dark:hidden">dark_mode</span>
+        <span class="material-icons-round hidden dark:block">light_mode</span>
+    </button>
+    <aside
+        class="w-64 h-full flex flex-col border-r border-border dark:border-gray-700 bg-surface dark:bg-gray-900 flex-shrink-0 z-20 shadow-sm transition-all duration-300">
+        <div>
+            <div class="h-16 flex items-center px-6 border-b border-border dark:border-gray-700">
+                <div class="flex items-center gap-3">
+                    <div
+                        class="size-10 rounded-xl bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center shadow-lg text-white">
+                        <span class="material-icons-round text-xl">psychology</span>
+                    </div>
+                    <span class="font-bold text-lg tracking-tight text-text-main dark:text-white">RAG Brain</span>
+                </div>
+            </div>
+            <nav class="p-3 space-y-2 mt-4">
+                <!-- Chat Interface -->
+                <a class="flex items-center gap-3 px-3 py-2.5 text-text-secondary dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg group relative transition-colors cursor-pointer"
+                    href="index.html">
+                    <span class="material-icons-round">chat_bubble_outline</span>
+                    <span class="font-medium">Chat Interface</span>
+                </a>
+
+                <!-- History -->
+                <a class="flex items-center gap-3 px-3 py-2.5 text-text-secondary dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg group relative transition-colors cursor-pointer"
+                    href="history.html">
+                    <span class="material-icons-round">history</span>
+                    <span class="font-medium">History</span>
+                </a>
+
+                <!-- Insights (Active) -->
+                <a class="flex items-center gap-3 px-3 py-2.5 bg-primary/10 text-primary rounded-lg group relative cursor-pointer"
+                    href="#">
+                    <span class="material-icons-round">analytics</span>
+                    <span class="font-medium">Insights</span>
+                </a>
+            </nav>
+
+            <!-- Recent Chats Removed for Analytics Page -->
+            <!-- <div id="history-container" ... > </div> -->
+        </div>
+
+        <!-- Sidebar Footer -->
+        <div class="mt-auto p-4 border-t border-border dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50">
+            <div id="storage-container" class="mb-4">
+                <div
+                    class="bg-white dark:bg-gray-800 rounded-lg p-3 border border-border dark:border-gray-700 shadow-sm">
+                    <div class="flex items-center justify-between mb-2">
+                        <span
+                            class="text-xs font-semibold uppercase tracking-wider text-text-secondary flex items-center gap-1">
+                            <span class="material-icons-round text-sm">cloud_queue</span> Storage
+                        </span>
+                        <span id="storage-percent" class="text-xs font-bold text-primary">0%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-1.5 mb-2">
+                        <div id="storage-bar" class="bg-primary h-1.5 rounded-full" style="width: 0%"></div>
+                    </div>
+                    <div class="flex justify-between text-[10px] text-text-muted">
+                        <span id="storage-used">0GB used</span>
+                        <span>5GB total</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-2">
+                <a href="index.html"
+                    class="w-full text-left text-sm text-primary hover:bg-blue-50 px-3 py-2 rounded-lg transition-colors flex items-center gap-2 font-medium">
+                    <span class="material-icons-round text-base">add</span>
+                    New Chat
+                </a>
+                <button onclick="alert('Please clear history from the main chat interface.')"
+                    class="w-full text-left text-sm text-danger hover:bg-red-50 px-3 py-2 rounded-lg transition-colors flex items-center gap-2 font-medium">
+                    <span class="material-icons-round text-base">delete_sweep</span>
+                    Clear History
+                </button>
+            </div>
+        </div>
+    </aside>
+    <main class="flex-1 flex flex-col h-full overflow-hidden relative bg-[#F9FAFB] dark:bg-gray-950">
+        <header
+            class="h-16 border-b border-border dark:border-gray-700 bg-surface dark:bg-gray-900 flex items-center justify-between px-8 z-10 flex-shrink-0 shadow-sm">
+            <div>
+                <h2 class="text-xl font-display font-bold text-text-main dark:text-white">Performance Overview</h2>
+                <!-- Subtitle logic handled via JS if needed, but user design doesnt show it in header, only title. Keeping it simple. -->
+                <div id="range-label" class="hidden text-[10px] text-text-muted mt-0.5">Last 7 Days</div>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="flex items-center bg-gray-50 border border-border rounded-lg p-1">
+                    <button onclick="app.setRange('today')" id="btn-today"
+                        class="px-3 py-1.5 text-xs font-medium text-text-secondary hover:bg-white hover:shadow-sm rounded-md transition-all">Today</button>
+                    <button onclick="app.setRange('7d')" id="btn-7d"
+                        class="px-3 py-1.5 text-xs font-medium text-primary bg-white shadow-sm rounded-md transition-all">Last
+                        7 Days</button>
+                    <button onclick="app.setRange('30d')" id="btn-30d"
+                        class="px-3 py-1.5 text-xs font-medium text-text-secondary hover:bg-white hover:shadow-sm rounded-md transition-all">Last
+                        30 Days</button>
+                    <div class="w-px h-4 bg-border mx-1"></div>
+                    <button onclick="app.toggleCustom()" id="btn-custom"
+                        class="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-text-secondary hover:text-text-main transition-colors">
+                        <span class="material-symbols-outlined text-[16px]">calendar_today</span>
+                        <span>Custom</span>
+                    </button>
+                </div>
+
+                <!-- Custom Date Picker (Hidden by default) -->
+                <div id="custom-picker"
+                    class="hidden absolute top-16 right-8 bg-white p-4 rounded-xl shadow-card border border-border z-50 flex flex-col gap-3">
+                    <div class="flex flex-col gap-1">
+                        <label class="text-xs font-semibold text-text-secondary">Start Date</label>
+                        <input type="date" id="date-start"
+                            class="text-xs border-gray-300 rounded-lg focus:ring-primary focus:border-primary">
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-xs font-semibold text-text-secondary">End Date</label>
+                        <input type="date" id="date-end"
+                            class="text-xs border-gray-300 rounded-lg focus:ring-primary focus:border-primary">
+                    </div>
+                    <button onclick="app.applyCustom()"
+                        class="w-full bg-primary text-white text-xs font-medium py-2 rounded-lg hover:bg-primary-dark transition-colors">Apply</button>
+                </div>
+
+                <!-- Refresh Button -->
+                <button onclick="app.fetchData()"
+                    class="p-2 text-text-secondary hover:text-primary hover:bg-gray-100 rounded-lg transition-colors group"
+                    title="Refresh Data">
+                    <span class="material-icons-round group-active:animate-spin">refresh</span>
+                </button>
+
+            </div>
+        </header>
+
+        <div class="flex-1 overflow-y-auto custom-scroll p-8">
+            <div class="max-w-7xl mx-auto flex flex-col gap-6">
+                <!-- TOP ROW -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Total Queries -->
+                    <div
+                        class="bg-surface dark:bg-gray-800 rounded-2xl p-6 shadow-card border border-border dark:border-gray-700 group hover:border-primary/30 transition-all">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="flex items-center gap-2 text-text-secondary dark:text-gray-400">
+                                <span class="material-symbols-outlined text-[20px]">search</span>
+                                <span class="text-sm font-medium">Total Queries</span>
+                            </div>
+                            <!-- Trend Arrow Box -->
+                            <div id="trend-queries" class="flex flex-col items-end opacity-0 transition-opacity">
+                                <!-- The Arrow Box -->
+                                <div class="flex items-center gap-1 font-bold text-sm">
+                                    <!-- Values injected via JS -->
+                                </div>
+                                <div class="text-[10px] text-text-muted mt-px trend-label">vs last week</div>
+                            </div>
+                        </div>
+                        <div class="flex items-end gap-2 mb-4">
+                            <h3 id="metric-queries"
+                                class="text-3xl font-display font-bold text-text-main dark:text-white">--</h3>
+                            <span id="label-queries" class="text-sm text-text-muted mb-1.5 font-medium">this week</span>
+                        </div>
+                        <div class="h-10 w-full overflow-hidden">
+                            <svg class="w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 20">
+                                <defs>
+                                    <linearGradient id="grad1" x1="0%" x2="0%" y1="0%" y2="100%">
+                                        <stop offset="0%" style="stop-color:#2563EB;stop-opacity:0.2"></stop>
+                                        <stop offset="100%" style="stop-color:#2563EB;stop-opacity:0"></stop>
+                                    </linearGradient>
+                                </defs>
+                                <path id="chart-queries-area" d="" fill="url(#grad1)" stroke="none"></path>
+                                <path id="chart-queries-line" d="" fill="none" stroke="#2563EB" stroke-width="2"
+                                    vector-effect="non-scaling-stroke"></path>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <!-- Active Sessions -->
+                    <div
+                        class="bg-surface dark:bg-gray-800 rounded-2xl p-6 shadow-card border border-border dark:border-gray-700 group hover:border-primary/30 transition-all">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="flex items-center gap-2 text-text-secondary dark:text-gray-400">
+                                <span class="material-symbols-outlined text-[20px]">group</span>
+                                <span class="text-sm font-medium">Active Sessions</span>
+                            </div>
+                            <span
+                                class="px-2 py-1 rounded-full bg-primary-light text-primary text-xs font-bold">active</span>
+                        </div>
+                        <div class="flex items-end gap-2 mb-4">
+                            <h3 id="metric-sessions"
+                                class="text-3xl font-display font-bold text-text-main dark:text-white">--</h3>
+                        </div>
+                        <div class="h-10 w-full overflow-hidden">
+                            <svg class="w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 20">
+                                <path id="chart-sessions-area" d="" fill="rgba(139, 92, 246, 0.1)" stroke="none"></path>
+                                <path id="chart-sessions-line" d="" fill="none" stroke="#8B5CF6" stroke-width="2"
+                                    vector-effect="non-scaling-stroke"></path>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <!-- Ingestion Volume -->
+                    <div
+                        class="bg-surface dark:bg-gray-800 rounded-2xl p-6 shadow-card border border-border dark:border-gray-700 group hover:border-primary/30 transition-all">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="flex items-center gap-2 text-text-secondary dark:text-gray-400">
+                                <span class="material-symbols-outlined text-[20px]">cloud_upload</span>
+                                <span class="text-sm font-medium">Ingestion Volume</span>
+                            </div>
+                            <!-- Trend Arrow Box -->
+                            <div id="trend-volume" class="flex flex-col items-end opacity-0 transition-opacity">
+                                <div class="flex items-center gap-1 font-bold text-sm">
+                                    <!-- Values injected via JS -->
+                                </div>
+                                <div class="text-[10px] text-text-muted mt-px trend-label">vs last week</div>
+                            </div>
+                        </div>
+                        <div class="flex items-end gap-2 mb-4">
+                            <span id="metric-volume"
+                                class="text-3xl font-display font-bold text-text-main dark:text-white">--</span>
+                            <span id="label-volume" class="text-sm text-text-muted mb-1.5 font-medium">processed</span>
+                        </div>
+                        <div class="h-10 w-full overflow-hidden">
+                            <div id="chart-ingestion-bars" class="flex items-end justify-between h-full gap-1">
+                                <!-- Dynamic Bars Injected Here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MIDDLE ROW -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Confidence Gauge -->
+                    <div
+                        class="bg-surface dark:bg-gray-800 rounded-2xl p-6 shadow-card border border-border dark:border-gray-700 flex flex-col justify-between h-full">
+                        <div>
+                            <h3 class="text-text-main font-semibold text-sm mb-1">Average Confidence Score</h3>
+                            <p class="text-xs text-text-muted">Based on semantic similarity metrics (0.0 - 1.0)</p>
+                        </div>
+                        <div class="relative flex flex-col items-center justify-center py-4">
+                            <svg class="w-full max-w-[260px] overflow-visible" viewBox="0 0 200 110">
+                                <defs>
+                                    <linearGradient id="scoreGradient" x1="0%" x2="100%" y1="0%" y2="0%">
+                                        <stop offset="0%" style="stop-color:#60A5FA; stop-opacity:1"></stop>
+                                        <stop offset="100%" style="stop-color:#2563EB; stop-opacity:1"></stop>
+                                    </linearGradient>
+                                </defs>
+                                <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#F3F4F6"
+                                    stroke-linecap="round" stroke-width="12"></path>
+                                <!-- Arc Length for Radius 80 is approx 251.3 -->
+                                <path id="gauge-path" class="transition-all duration-1000 ease-out"
+                                    stroke-dasharray="251.3" stroke-dashoffset="251.3"
+                                    d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="url(#scoreGradient)"
+                                    stroke-linecap="round" stroke-width="12"></path>
+                            </svg>
+                            <div class="absolute bottom-4 flex flex-col items-center transform translate-y-1">
+                                <span id="metric-confidence"
+                                    class="text-5xl font-display font-bold text-text-main dark:text-white tracking-tight leading-none">--</span>
+                                <div id="confidence-label"
+                                    class="flex items-center gap-1 mt-2 px-3 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-medium border border-gray-200">
+                                    <span class="material-symbols-outlined text-[14px]">remove</span>
+                                    <span>--</span>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- P90 / P50 Scores -->
+                        <div class="grid grid-cols-2 gap-4 border-t border-border pt-4">
+                            <div class="text-center">
+                                <p
+                                    class="text-[11px] font-bold text-text-muted dark:text-gray-400 uppercase tracking-wider mb-1">
+                                    Active
+                                    Sessions</p>
+                                <p id="metric-p90"
+                                    class="text-xl font-display font-bold text-text-main dark:text-white">--</p>
+                            </div>
+                            <div class="text-center border-l border-border">
+                                <p class="text-[10px] text-text-secondary uppercase font-semibold">P50 Score</p>
+                                <p id="metric-p50"
+                                    class="text-xl font-display font-bold text-text-main dark:text-white">--</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Trends (Static/Placeholder for now as no breakdown data) -->
+                    <div
+                        class="lg:col-span-2 bg-surface dark:bg-gray-800 rounded-2xl p-6 shadow-card border border-border dark:border-gray-700">
+                        <div class="flex justify-between items-center mb-6">
+                            <div>
+                                <h3 class="text-text-main dark:text-white font-semibold text-sm">Response Quality Trends
+                                </h3>
+                                <p class="text-xs text-text-muted dark:text-gray-500">Activity over the week</p>
+                            </div>
+                        </div>
+                        <div class="h-48 flex items-center justify-center text-text-muted animate-pulse">
+                            <span class="text-xs bg-gray-100 px-3 py-1 rounded-full">Trend data collecting...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BOTTOM ROW -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Latency -->
+                    <div
+                        class="bg-surface dark:bg-gray-800 rounded-2xl p-6 shadow-card border border-border dark:border-gray-700">
+                        <div class="flex justify-between items-start mb-6">
+                            <div>
+                                <h3 class="text-text-main dark:text-white font-semibold text-sm">End-to-End Latency</h3>
+                                <p class="text-xs text-text-muted dark:text-gray-500">Avg Latency (ms)</p>
+                            </div>
+                            <div class="text-right">
+                                <h3 id="metric-latency"
+                                    class="text-3xl font-display font-bold text-text-main dark:text-white">--ms</h3>
+                            </div>
+                        </div>
+                        <div class="h-48 w-full relative">
+                            <div
+                                class="absolute inset-0 flex flex-col justify-between text-xs text-text-muted pointer-events-none">
+                                <div class="border-b border-gray-100 w-full pb-1">High</div>
+                                <div class="border-b border-gray-100 w-full pb-1">Avg</div>
+                                <div class="border-b border-gray-100 w-full pb-1">Low</div>
+                            </div>
+                            <svg class="absolute inset-0 w-full h-full pt-4" preserveAspectRatio="none"
+                                viewBox="0 0 100 50">
+                                <defs>
+                                    <linearGradient id="latencyGradient" x1="0" x2="0" y1="0" y2="1">
+                                        <stop offset="0%" stop-color="#2563EB" stop-opacity="0.1"></stop>
+                                        <stop offset="100%" stop-color="#2563EB" stop-opacity="0"></stop>
+                                    </linearGradient>
+                                </defs>
+                                <path id="chart-latency-area" d="" fill="url(#latencyGradient)"></path>
+                                <path id="chart-latency-line" d="" fill="none" stroke="#2563EB" stroke-width="2"
+                                    vector-effect="non-scaling-stroke"></path>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <!-- Token Usage -->
+                    <div
+                        class="bg-surface dark:bg-gray-800 rounded-2xl p-6 shadow-card border border-border dark:border-gray-700">
+                        <div class="flex justify-between items-start mb-6">
+                            <div>
+                                <h3
+                                    class="text-text-main dark:text-white font-semibold text-sm flex items-center gap-2">
+                                    Token Usage Breakdown
+                                    <span
+                                        class="bg-primary/10 text-primary text-[10px] px-1.5 py-0.5 rounded border border-primary/20">Approx</span>
+                                </h3>
+                                <p class="text-xs text-text-muted dark:text-gray-500">Accurate count from query history
+                                </p>
+                            </div>
+                        </div>
+                        <div class="flex flex-col gap-6">
+                            <div class="group">
+                                <div class="flex justify-between text-xs mb-2">
+                                    <span class="font-medium text-text-secondary dark:text-gray-400">Input Tokens
+                                        (Prompt)</span>
+                                    <span id="metric-input-tokens"
+                                        class="font-mono text-text-main dark:text-white">--</span>
+                                </div>
+                                <div class="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                                    <div id="input-bar"
+                                        class="bg-primary h-full rounded-full w-[0%] group-hover:bg-primary-dark transition-colors duration-1000">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="group">
+                                <div class="flex justify-between text-xs mb-2">
+                                    <span class="font-medium text-text-secondary dark:text-gray-400">Output Tokens
+                                        (Completion)</span>
+                                    <span id="metric-output-tokens"
+                                        class="font-mono text-text-main dark:text-white">--</span>
+                                </div>
+                                <div class="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                                    <div id="output-bar"
+                                        class="bg-purple-500 h-full rounded-full w-[0%] group-hover:bg-purple-600 transition-colors duration-1000">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+
+
+    <script>
+        const app = {
+            currentRange: '7d', // Default
+
+            init: () => {
+                // Theme Init
+                if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+
+                app.setRange('7d');
+                setInterval(() => app.fetchData(), 60000); // 1 min refresh
+                app.updateStorage();
+            },
+
+            toggleTheme: () => {
+                const html = document.documentElement;
+                if (html.classList.contains('dark')) {
+                    html.classList.remove('dark');
+                    localStorage.theme = 'light';
+                } else {
+                    html.classList.add('dark');
+                    localStorage.theme = 'dark';
+                }
+            },
+
+            formatBytes: (bytes, decimals = 2) => {
+                if (bytes === 0) return '0 B';
+                const k = 1024;
+                const dm = decimals < 0 ? 0 : decimals;
+                const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+            },
+
+            // Generate Path 'd' for Sparklines
+            createSparkline: (data, width, height, fill = false) => {
+                if (!data || data.length === 0) return "";
+                const max = Math.max(...data, 1); // Avoid div zero
+                const min = 0;
+                const stepX = width / (data.length > 1 ? data.length - 1 : 1);
+
+                let path = "";
+                data.forEach((val, i) => {
+                    const x = i * stepX;
+                    const y = height - ((val / max) * height);
+                    path += `${i === 0 ? 'M' : 'L'} ${x} ${y} `;
+                });
+
+                if (fill) {
+                    path += `V ${height} H 0 Z`;
+                }
+                return path;
+            },
+
+            updateTrend: (elementId, pct, labelText) => {
+                const wrapper = document.getElementById(elementId);
+                if (!wrapper) return;
+
+                const valueEl = wrapper.children[0];
+                const labelEl = wrapper.querySelector('.trend-label');
+
+                wrapper.style.opacity = '1';
+
+                // Colors: Success=Green, Danger=Red, Neutral=Gray
+                // Design from User Code:
+                // <span class="px-2 py-1 rounded-full bg-success/10 text-success text-xs font-bold">+12.5%</span>
+
+                let colorClass = "bg-gray-100 text-gray-500";
+                let text = "0%";
+
+                if (pct > 0) {
+                    colorClass = "bg-success/10 text-success";
+                    text = "+" + pct + "%";
+                } else if (pct < 0) {
+                    colorClass = "bg-danger/10 text-danger"; // Assuming danger follows same pattern
+                    text = pct + "%";
+                } else {
+                    colorClass = "bg-warning/10 text-warning";
+                    text = pct + "%";
+                }
+
+                // Trend Pill UI
+                valueEl.className = `px-2 py-1 rounded-full text-xs font-bold ${colorClass}`;
+                valueEl.innerHTML = text;
+
+                // Note: User design doesn't show "vs last week" text explicitly in the pill container div in the snippet for queries/volume cards,
+                // but requested logic "vs last week" earlier. I will keep the label mostly hidden or subtle if not in design?
+                // Actually in user code: 
+                // <span class="px-2 py-1 rounded-full bg-success/10 text-success text-xs font-bold">+12.5%</span>
+                // It sits inside: <div class="flex justify-between items-start mb-4"> ... </div>
+                // The label (this week) is under the big number.
+                // I will hide the explicit "vs last week" trend-label if it conflicts, or position it elsewhere.
+                // In my previous structure `trend-queries` div contained both.
+                // I'll keep the labelEl update but verify placement.
+                if (labelEl) labelEl.textContent = ""; // User design doesn't show small trend text next to pill in the top row cards.
+            },
+
+            setRange: (range) => {
+                app.currentRange = range;
+
+                // Update UI state - New Classes from User Code
+                // Inactive: "px-3 py-1.5 text-xs font-medium text-text-secondary hover:bg-white hover:shadow-sm rounded-md transition-all"
+                // Active: "px-3 py-1.5 text-xs font-medium text-text-primary bg-white shadow-sm rounded-md transition-all"
+                // Note: User code uses `text-primary` for active.
+
+                const baseClass = "px-3 py-1.5 text-xs font-medium rounded-md transition-all";
+                const inactiveClass = "text-text-secondary hover:bg-white hover:shadow-sm";
+                const activeClass = "text-primary bg-white shadow-sm";
+
+                ['today', '7d', '30d', 'custom'].forEach(r => {
+                    const btn = document.getElementById('btn-' + r);
+                    if (btn) {
+                        // Reset
+                        btn.className = baseClass;
+
+                        if (r === range) {
+                            btn.classList.add(...activeClass.split(' '));
+                        } else {
+                            // Separate "Custom" button which has extra classes?
+                            if (r === 'custom') {
+                                // Custom button has its own specific styling in user code:
+                                // "flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-text-secondary hover:text-text-main transition-colors"
+                                // But if it becomes active (when custom picker is open), it should probably look active.
+                                // For now, let's just handle standard buttons.
+                                btn.className = "flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-text-secondary hover:text-text-main transition-colors";
+                                if (app.currentRange === 'custom') btn.classList.add('text-primary'); // distinct Highlight
+                            } else {
+                                btn.classList.add(...inactiveClass.split(' '));
+                            }
+                        }
+                    }
+                });
+
+                // Hide custom picker if not custom
+                if (range !== 'custom') {
+                    document.getElementById('custom-picker').classList.add('hidden');
+
+                    if (document.getElementById('range-label')) {
+                        const labels = { 'today': 'Past 24 Hours', '7d': 'Last 7 Days', '30d': 'Last 30 Days' };
+                        document.getElementById('range-label').textContent = labels[range];
+                    }
+
+                    // Period Context Labels
+                    let periodText = "this period";
+                    if (range === 'today') periodText = "today";
+                    else if (range === '7d') periodText = "this week";
+                    else if (range === '30d') periodText = "this month";
+
+                    document.getElementById('label-queries').textContent = periodText;
+
+                    app.fetchData();
+                }
+            },
+
+            toggleCustom: () => {
+                const picker = document.getElementById('custom-picker');
+                picker.classList.toggle('hidden');
+
+                if (!picker.classList.contains('hidden')) {
+                    app.setRange('custom'); // Highlight button
+                }
+            },
+
+            applyCustom: () => {
+                const start = document.getElementById('date-start').value;
+                const end = document.getElementById('date-end').value;
+                if (!start) return alert("Please select a start date");
+
+                document.getElementById('custom-picker').classList.add('hidden');
+                document.getElementById('range-label').textContent = `Custom: ${start} to ${end || 'Now'}`;
+
+                // Set context label to generic for custom
+                document.getElementById('label-queries').textContent = "this period";
+
+                app.fetchData(start, end);
+            },
+
+            fetchData: async (customStart, customEnd) => {
+                try {
+                    let url = `/api/v1/analytics/stats?range=${app.currentRange}`;
+                    if (app.currentRange === 'custom' && customStart) {
+                        url += `&start=${customStart}`;
+                        if (customEnd) url += `&end=${customEnd}`;
+                    }
+                    const res = await fetch(url);
+                    if (!res.ok) throw new Error("Failed to load stats");
+                    const data = await res.json();
+
+                    // Correctly Map DB keys to UI
+                    // DB keys: queries_total, sessions_total, volume_total, latency_avg, confidence_avg
+                    // input_tokens, output_tokens, p50_score, p90_score, queries/sessions/latency/ingestion arrays
+
+                    document.getElementById('metric-queries').textContent = (data.queries_total || 0).toLocaleString();
+                    document.getElementById('metric-sessions').textContent = (data.sessions_total || 0).toLocaleString();
+                    document.getElementById('metric-volume').textContent = app.formatBytes(data.volume_total || 0);
+
+                    const lat = data.latency_avg || 0;
+                    document.getElementById('metric-latency').textContent = lat > 1000 ? (lat / 1000).toFixed(2) + 's' : Math.round(lat) + 'ms';
+
+                    const conf = data.confidence_avg || 0;
+                    document.getElementById('metric-confidence').textContent = typeof conf === 'number' ? conf.toFixed(2) : conf;
+
+                    document.getElementById('metric-p90').textContent = data.p90_score || '--';
+                    document.getElementById('metric-p50').textContent = data.p50_score || '--';
+
+                    document.getElementById('metric-input-tokens').textContent = (data.input_tokens || 0).toLocaleString();
+                    document.getElementById('metric-output-tokens').textContent = (data.output_tokens || 0).toLocaleString();
+
+                    // Update Progress Bars for Tokens (visual approx)
+                    const totalToks = (data.input_tokens || 0) + (data.output_tokens || 0);
+                    if (totalToks > 0) {
+                        const inPct = Math.round((data.input_tokens / totalToks) * 100);
+                        const outPct = Math.round((data.output_tokens / totalToks) * 100);
+                        document.getElementById('input-bar').style.width = `${inPct}%`;
+                        document.getElementById('output-bar').style.width = `${outPct}%`;
+                    }
+
+                    // --- Gauge ---
+                    const arcLen = 251.3;
+                    const offset = arcLen * (1 - conf);
+                    document.getElementById('gauge-path').style.strokeDashoffset = offset;
+
+                    const gaugeLabel = document.getElementById('confidence-label');
+                    if (conf >= 0.8) {
+                        gaugeLabel.className = "flex items-center gap-1 mt-2 px-3 py-1 rounded-full bg-success/10 text-success text-xs font-medium border border-success/20";
+                        gaugeLabel.innerHTML = '<span class="material-symbols-outlined text-[14px]">trending_up</span> High';
+                    } else if (conf >= 0.5) {
+                        gaugeLabel.className = "flex items-center gap-1 mt-2 px-3 py-1 rounded-full bg-warning/10 text-warning text-xs font-medium border border-warning/20";
+                        gaugeLabel.innerHTML = '<span class="material-symbols-outlined text-[14px]">remove</span> Medium';
+                    } else {
+                        gaugeLabel.className = "flex items-center gap-1 mt-2 px-3 py-1 rounded-full bg-danger/10 text-danger text-xs font-medium border border-danger/20";
+                        gaugeLabel.innerHTML = '<span class="material-symbols-outlined text-[14px]">trending_down</span> Low';
+                    }
+
+                    // --- Charts (Dynamic Arrays) ---
+                    const qData = data.queries || [];
+                    const sData = data.sessions || [];
+                    const lData = data.latency || [];
+                    const iData = data.ingestion || [];
+
+                    document.getElementById('chart-queries-line').setAttribute('d', app.createSparkline(qData, 100, 20, false));
+                    document.getElementById('chart-queries-area').setAttribute('d', app.createSparkline(qData, 100, 20, true));
+                    document.getElementById('chart-sessions-line').setAttribute('d', app.createSparkline(sData, 100, 20, false));
+                    document.getElementById('chart-sessions-area').setAttribute('d', app.createSparkline(sData, 100, 20, true));
+                    document.getElementById('chart-latency-line').setAttribute('d', app.createSparkline(lData, 100, 50, false));
+                    document.getElementById('chart-latency-area').setAttribute('d', app.createSparkline(lData, 100, 50, true));
+
+                    // Ingestion Bars
+                    const barsContainer = document.getElementById('chart-ingestion-bars');
+                    barsContainer.innerHTML = '';
+                    const maxVol = Math.max(...iData, 1);
+                    iData.forEach((val, i) => {
+                        const h = (val / maxVol) * 100;
+                        const bar = document.createElement('div');
+                        bar.className = "flex-1 rounded-sm transition-all duration-500 m-px";
+                        if (val > 0) {
+                            bar.classList.add("bg-primary");
+                            bar.title = app.formatBytes(val);
+                        } else {
+                            bar.classList.add("bg-gray-100");
+                        }
+                        bar.style.height = `${Math.max(h, 5)}%`;
+                        barsContainer.appendChild(bar);
+                    });
+
+                    // --- Tokens ---
+                    const inTok = data.input_tokens || 0;
+                    const outTok = data.output_tokens || 0;
+                    document.getElementById('metric-input-tokens').textContent = inTok.toLocaleString();
+                    document.getElementById('metric-output-tokens').textContent = outTok.toLocaleString();
+                    const maxTok = Math.max(inTok, outTok, 10);
+                    const wIn = (inTok / maxTok) * 100;
+                    const wOut = (outTok / maxTok) * 100;
+                    document.getElementById('input-bar').style.width = `${wIn}%`;
+                    document.getElementById('output-bar').style.width = `${wOut}%`;
+
+                } catch (e) {
+                    console.error("Analytics Error:", e);
+                }
+            },
+
+            // --- Sidebar Logic ---
+            updateStorage: async () => {
+                try {
+                    const res = await fetch('/api/v1/admin/storage');
+                    if (res.ok) {
+                        const data = await res.json();
+                        const percent = Math.min(data.percentage, 100);
+                        document.getElementById('storage-percent').textContent = `${percent}%`;
+                        document.getElementById('storage-bar').style.width = `${percent}%`;
+                        document.getElementById('storage-used').textContent = `${data.used_formatted} used`;
+                    }
+                } catch (e) { console.error('Storage fetch error', e); }
+            },
+
+            loadHistoryList: async () => {
+                try {
+                    const res = await fetch(`/api/v1/history/sessions?limit=3`);
+                    if (!res.ok) return;
+                    const sessions = await res.json();
+                    const container = document.getElementById('history-list');
+                    container.innerHTML = '';
+
+                    if (sessions.length === 0) {
+                        container.innerHTML = '<div class="text-xs text-center p-2 text-text-muted">No history</div>';
+                        return;
+                    }
+
+                    sessions.forEach(s => {
+                        const div = document.createElement('a');
+                        div.href = `index.html?session_id=${s.session_id}`;
+                        div.className = `p-2 rounded cursor-pointer text-sm truncate flex items-center gap-2 text-text-secondary hover:bg-gray-100 block`;
+                        div.innerHTML = `<span class="material-icons-round text-xs">chat_bubble_outline</span> ${s.title || 'Untitled'}`;
+                        container.appendChild(div);
+                    });
+                } catch (e) { console.error("History load error", e); }
+            }
+        };
+
+        window.onload = () => {
+            app.init();
+            app.updateStorage();
+            app.loadHistoryList();
+        };
+    </script>
+</body>
+
+</html>

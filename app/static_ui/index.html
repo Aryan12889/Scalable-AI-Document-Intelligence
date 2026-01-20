@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>RAG Brain - AI Document Intelligence</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
+
+    <!-- Dependencies (UUID, Markdown) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/uuid/8.3.2/uuid.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#3B82F6",
+                        "primary-hover": "#2563EB",
+                        "background-light": "#F8FAFC",
+                        "background-dark": "#0F172A",
+                        "surface-light": "#FFFFFF",
+                        "surface-dark": "#1E293B",
+                        "border-light": "#E2E8F0",
+                        "border-dark": "#334155",
+                        "text-main-light": "#0F172A",
+                        "text-main-dark": "#F8FAFC",
+                        "text-muted-light": "#64748B",
+                        "text-muted-dark": "#94A3B8",
+                    },
+                    fontFamily: {
+                        sans: ["Inter", "sans-serif"],
+                        mono: ["JetBrains Mono", "monospace"],
+                    },
+                    boxShadow: {
+                        'soft': '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+                        'glow': '0 0 15px rgba(59, 130, 246, 0.3)',
+                    }
+                },
+            },
+        };
+    </script>
+    <style>
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+
+        .dark ::-webkit-scrollbar-thumb {
+            background: #475569;
+        }
+
+        .fade-in-up {
+            animation: fadeInUp 0.5s ease-out forwards;
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        summary {
+            list-style: none;
+        }
+
+        summary::-webkit-details-marker {
+            display: none;
+        }
+
+        /* Loading Dots */
+        .typing-dot {
+            animation: typing 1.4s infinite ease-in-out both;
+        }
+
+        .typing-dot:nth-child(1) {
+            animation-delay: -0.32s;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: -0.16s;
+        }
+
+        @keyframes typing {
+
+            0%,
+            80%,
+            100% {
+                transform: scale(0);
+            }
+
+            40% {
+                transform: scale(1);
+            }
+        }
+    </style>
+</head>
+
+<body
+    class="bg-background-light dark:bg-background-dark text-text-main-light dark:text-text-main-dark font-sans antialiased h-screen flex overflow-hidden selection:bg-primary selection:text-white">
+
+    <!-- Theme Toggle FAB (Moved to Top) -->
+    <button
+        class="fixed bottom-6 right-6 p-3 rounded-full bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark shadow-lg text-text-muted-light dark:text-text-muted-dark hover:text-primary z-50 transition-transform hover:scale-110"
+        onclick="app.toggleTheme()">
+        <span class="material-icons-round dark:hidden">dark_mode</span>
+        <span class="material-icons-round hidden dark:block">light_mode</span>
+    </button>
+
+    <!-- SIDEBAR -->
+    <aside
+        class="w-20 lg:w-72 flex-shrink-0 bg-surface-light dark:bg-surface-dark border-r border-border-light dark:border-border-dark flex flex-col justify-between transition-all duration-300 z-20">
+        <div>
+            <div class="h-16 flex items-center px-4 lg:px-6 border-b border-border-light dark:border-border-dark">
+                <div class="flex items-center gap-3">
+                    <div
+                        class="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center shadow-lg text-white">
+                        <span class="material-icons-round text-xl">psychology</span>
+                    </div>
+                    <span class="font-bold text-lg hidden lg:block tracking-tight">RAG Brain</span>
+                </div>
+            </div>
+            <nav class="p-3 space-y-2 mt-4">
+                <!-- Chat (Active) -->
+                <a class="flex items-center gap-3 px-3 py-2.5 bg-primary/10 text-primary rounded-lg group relative cursor-pointer"
+                    onclick="app.showChat()">
+                    <span class="material-icons-round">chat_bubble_outline</span>
+                    <span class="font-medium hidden lg:block">Chat Interface</span>
+                </a>
+
+                <!-- Knowledge Base Link Removed -->
+
+                <!-- History Toggle -->
+                <div class="relative">
+                    <a class="flex items-center gap-3 px-3 py-2.5 text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg group relative transition-colors cursor-pointer"
+                        href="history.html">
+                        <span class="material-icons-round">history</span>
+                        <span class="font-medium hidden lg:block">History</span>
+                    </a>
+                </div>
+
+                <!-- Insights -->
+                <a href="analytics.html"
+                    class="flex items-center gap-3 px-3 py-2.5 text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg group relative transition-colors">
+                    <span class="material-icons-round">analytics</span>
+                    <span class="font-medium hidden lg:block">Insights</span>
+                </a>
+            </nav>
+
+            <!-- History List (Hidden by default, or inline) -->
+            <div id="history-container" class="hidden lg:block px-3 mt-4 overflow-y-auto max-h-64 space-y-1">
+                <p class="px-3 text-xs font-semibold text-text-muted-light uppercase">Recent Chats</p>
+                <div id="history-list">
+                    <!-- History Items Injected Here -->
+                    <div class="text-xs text-center p-2 text-text-muted-light">Loading...</div>
+                </div>
+            </div>
+
+            <!-- Sidebar Footer -->
+            <div class="p-4 border-t border-border-light dark:border-border-dark">
+                <div id="storage-container" class="hidden lg:block mb-4">
+                    <div
+                        class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 border border-border-light dark:border-border-dark">
+                        <div class="flex items-center justify-between mb-2">
+                            <span
+                                class="text-xs font-semibold uppercase tracking-wider text-text-muted-light dark:text-text-muted-dark flex items-center gap-1">
+                                <span class="material-icons-round text-sm">cloud_queue</span> Storage
+                            </span>
+                            <span id="storage-percent" class="text-xs font-bold text-primary">0%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 mb-2">
+                            <div id="storage-bar" class="bg-primary h-1.5 rounded-full" style="width: 0%"></div>
+                        </div>
+                        <div class="flex justify-between text-[10px] text-text-muted-light dark:text-text-muted-dark">
+                            <span id="storage-used">0GB used</span>
+                            <span>5GB total</span>
+                        </div>
+                    </div>
+                </div>
+                <script>
+                    async function updateStorage() {
+                        try {
+                            const res = await fetch('/api/v1/admin/storage');
+                            if (res.ok) {
+                                const data = await res.json();
+                                const percent = Math.min(data.percentage, 100);
+                                document.getElementById('storage-percent').textContent = `${percent}%`;
+                                document.getElementById('storage-bar').style.width = `${percent}%`;
+                                document.getElementById('storage-used').textContent = `${data.used_formatted} used`;
+                            }
+                        } catch (e) { console.error('Storage fetch error', e); }
+                    }
+                    updateStorage();
+                </script>
+                <div class="hidden lg:flex flex-col gap-2">
+                    <button onclick="app.newChat()"
+                        class="w-full text-left text-sm text-primary hover:bg-blue-50 dark:hover:bg-blue-900/20 px-3 py-2 rounded-lg transition-colors flex items-center gap-2">
+                        <span class="material-icons-round text-base">add</span>
+                        New Chat
+                    </button>
+                    <button onclick="app.clearHistory()"
+                        class="w-full text-left text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 px-3 py-2 rounded-lg transition-colors flex items-center gap-2">
+                        <span class="material-icons-round text-base">delete_sweep</span>
+                        Clear History
+                    </button>
+                </div>
+            </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-1 flex flex-col h-full relative z-10 bg-background-light dark:bg-background-dark">
+        <!-- HEADER -->
+        <header
+            class="h-16 bg-surface-light/80 dark:bg-surface-dark/80 backdrop-blur-md border-b border-border-light dark:border-border-dark flex items-center justify-between px-6 sticky top-0 z-30">
+            <div class="flex items-center gap-4">
+                <h1 id="chat-title" class="text-lg font-semibold text-text-main-light dark:text-text-main-dark">New Chat
+                </h1>
+                <span id="model-badge"
+                    class="px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-medium">Synced</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="window.location.href='knowledge_base.html'"
+                    class="flex items-center gap-2 px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 hover:border-primary/50 rounded-lg text-sm font-medium transition-all shadow-sm hover:shadow-md group">
+                    <span
+                        class="material-icons-round text-primary group-hover:scale-110 transition-transform text-lg">settings</span>
+                    Manage Knowledge
+                </button>
+            </div>
+        </header>
+
+        <!-- CHAT CONTAINER -->
+        <div class="flex-1 overflow-y-auto p-4 lg:p-8 scroll-smooth" id="chat-scroller">
+            <div id="chat-messages" class="max-w-4xl mx-auto space-y-6">
+                <!-- Welcome / Empty State -->
+                <div id="welcome-screen"
+                    class="flex flex-col items-center justify-center min-h-[50vh] text-center space-y-6 fade-in-up">
+                    <div
+                        class="w-20 h-20 bg-gradient-to-tr from-pink-300 via-purple-300 to-indigo-400 rounded-2xl flex items-center justify-center shadow-xl mb-4">
+                        <span class="material-icons-round text-4xl text-white">psychology</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- INPUT AREA -->
+        <div class="p-6 bg-surface-light dark:bg-surface-dark border-t border-border-light dark:border-border-dark">
+            <div class="max-w-4xl mx-auto">
+                <div
+                    class="relative bg-white dark:bg-gray-900 border border-border-light dark:border-border-dark rounded-xl shadow-soft flex items-end p-2 transition-colors focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20">
+                    <details class="relative">
+                        <summary
+                            class="list-none p-2 mr-1 text-text-muted-light hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors cursor-pointer flex items-center justify-center outline-none"
+                            title="Upload options">
+                            <span class="material-icons-round text-xl">add</span>
+                        </summary>
+                        <div
+                            class="absolute bottom-full left-0 mb-3 w-56 bg-white dark:bg-gray-800 border border-border-light dark:border-border-dark rounded-xl shadow-xl overflow-hidden z-20 fade-in-up">
+                            <label id="upload-doc-btn"
+                                class="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors w-full group/item">
+                                <input type="file" multiple class="hidden"
+                                    onchange="app.handleFileUpload(this.files); this.value=''" accept=".pdf,.txt,.md">
+                                <span
+                                    class="material-icons-round text-primary text-xl group-hover/item:scale-110 transition-transform">upload_file</span>
+                                <span class="text-sm font-medium text-text-main-light dark:text-text-main-dark">Upload
+                                    Document</span>
+                            </label>
+                        </div>
+                    </details>
+                    <textarea id="user-input"
+                        class="w-full bg-transparent border-none text-text-main-light dark:text-text-main-dark placeholder-text-muted-light dark:placeholder-text-muted-dark focus:ring-0 resize-none py-3 max-h-32 text-sm leading-relaxed"
+                        onkeydown="app.handleInputKey(event)" placeholder="Ask about your documents..."
+                        rows="1"></textarea>
+
+                    <div class="flex items-center gap-1 pb-1">
+                        <button onclick="app.sendMessage()"
+                            class="p-2 bg-primary text-white rounded-lg hover:bg-primary-hover shadow-md transition-all hover:scale-105 active:scale-95 ml-1">
+                            <span class="material-icons-round text-lg">send</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="mt-3 text-center">
+                    <p class="text-xs text-text-muted-light dark:text-text-muted-dark">RAG Brain can make mistakes.
+                        Consider checking important information.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- UPLOAD MODAL -->
+    <div id="upload-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="app.closeUploadModal()"></div>
+        <div
+            class="bg-surface-light dark:bg-surface-dark w-full max-w-lg rounded-2xl shadow-2xl border border-border-light dark:border-border-dark relative z-10 overflow-hidden fade-in-up">
+            <div class="p-6 border-b border-border-light dark:border-border-dark flex justify-between items-center">
+                <h3 class="text-lg font-semibold">Manage Knowledge Base</h3>
+                <button onclick="app.closeUploadModal()"
+                    class="text-text-muted-light dark:text-text-muted-dark hover:text-text-main-light">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+            <div class="p-6 space-y-4">
+                <label id="drop-zone"
+                    class="border-2 border-dashed border-border-light dark:border-border-dark rounded-xl p-8 flex flex-col items-center justify-center text-center bg-gray-50 dark:bg-gray-800/30 hover:bg-blue-50 dark:hover:bg-blue-900/10 hover:border-primary transition-colors cursor-pointer group">
+                    <input type="file" id="file-upload" multiple class="hidden"
+                        onchange="app.handleFileUpload(this.files)">
+                    <div
+                        class="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                        <span class="material-icons-round text-primary text-2xl">cloud_upload</span>
+                    </div>
+                    <p class="font-medium text-sm">Click to upload or drag and drop</p>
+                    <p class="text-xs text-text-muted-light dark:text-text-muted-dark mt-1">PDF, TXT, MD</p>
+                </label>
+                <div id="upload-status" class="space-y-2"></div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- LOGIC -->
+    <script>
+        const API_URL = "/api/v1";
+
+        // Helper to generate UUID
+        function generateUUID() {
+            if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+                return crypto.randomUUID();
+            }
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+                var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        const app = {
+            sessionId: null,
+            history: [],
+
+            init: async () => {
+                console.log("App Init...");
+
+                // Theme Init
+                const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+                function updateTheme(e) {
+                    if (!('theme' in localStorage)) {
+                        if (e.matches) {
+                            document.documentElement.classList.add('dark');
+                        } else {
+                            document.documentElement.classList.remove('dark');
+                        }
+                    }
+                }
+
+                // Initial Check
+                if (localStorage.theme === 'dark' || (!('theme' in localStorage) && darkModeQuery.matches)) {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+
+                // Listen for System Changes
+                darkModeQuery.addEventListener('change', updateTheme);
+
+                // Setup Drag & Drop
+                const dropZone = document.getElementById('drop-zone');
+                if (dropZone) {
+                    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                        dropZone.addEventListener(eventName, preventDefaults, false);
+                    });
+                    ['dragenter', 'dragover'].forEach(eventName => {
+                        dropZone.addEventListener(eventName, highlight, false);
+                    });
+                    ['dragleave', 'drop'].forEach(eventName => {
+                        dropZone.addEventListener(eventName, unhighlight, false);
+                    });
+                    dropZone.addEventListener('drop', handleDrop, false);
+                }
+
+                function preventDefaults(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+                function highlight(e) { dropZone.classList.add('border-primary', 'bg-blue-50', 'dark:bg-blue-900/20'); }
+                function unhighlight(e) { dropZone.classList.remove('border-primary', 'bg-blue-50', 'dark:bg-blue-900/20'); }
+                function handleDrop(e) {
+                    const dt = e.dataTransfer;
+                    const files = dt.files;
+                    app.handleFileUpload(files);
+                }
+
+                try {
+                    // Check URL for session
+                    const params = new URLSearchParams(window.location.search);
+                    const urlSession = params.get('session_id');
+
+                    if (urlSession) {
+                        app.sessionId = urlSession;
+                        console.log("Session from URL:", app.sessionId);
+                    } else {
+                        await app.reuseOrCreateSession();
+                    }
+
+                    // Parallel Load
+                    await Promise.all([
+                        app.loadHistoryList(),
+                        app.loadChatHistory(),
+                        app.fetchTitleForSession(app.sessionId) // Explicitly fetch title
+                    ]);
+
+                    // Fetch all sessions and store them in app.history
+                    const res = await fetch(`${API_URL}/history/sessions`);
+                    if (res.ok) {
+                        const sessions = await res.json();
+                        app.history = sessions; // Store for lookup
+                    }
+
+                } catch (e) {
+                    console.error("Init Error", e);
+                    document.getElementById('history-list').innerHTML = `<div class="text-xs text-red-500 p-2">Init Failed: ${e.message}</div>`;
+                }
+            },
+
+            reuseOrCreateSession: async () => {
+                try {
+                    // Check for recent session
+                    const res = await fetch(`${API_URL}/history/sessions?limit=1`);
+                    if (res.ok) {
+                        const sessions = await res.json();
+                        if (sessions.length > 0) {
+                            const latest = sessions[0];
+                            console.log("Reusing session:", latest.session_id);
+                            app.sessionId = latest.session_id;
+                            app.updateUrl(latest.session_id);
+                            return;
+                        }
+                    }
+                } catch (e) {
+                    console.warn("Reuse logic failed, creating new:", e);
+                }
+                // Fallback to create new
+                await app.createSession();
+            },
+
+            createSession: async () => {
+                const newId = generateUUID();
+                console.log("Creating Session:", newId);
+                try {
+                    await fetch(`${API_URL}/history/sessions`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ session_id: newId, title: "New Chat" })
+                    });
+
+                    // Full reset
+                    app.sessionId = newId;
+                    app.updateUrl(newId);
+
+                    // Clear UI
+                    document.getElementById('chat-messages').innerHTML = '';
+                    app.renderWelcome();
+
+                    // Refresh Sidebar (New Chat at top)
+                    await app.loadHistoryList();
+
+                    // Update Title Header
+                    const titleEl = document.getElementById('chat-title');
+                    if (titleEl) titleEl.innerText = "New Chat";
+
+                } catch (e) { console.error("Session Create Error", e); }
+            },
+
+            updateUrl: (sid) => {
+                const url = new URL(window.location);
+                url.searchParams.set('session_id', sid);
+                window.history.pushState({}, '', url);
+            },
+
+            loadHistoryList: async () => {
+                try {
+                    console.log("Loading History...");
+                    const res = await fetch(`${API_URL}/history/sessions?limit=5`); // User requested 5 recent chats
+                    if (!res.ok) throw new Error(`API ${res.status}`);
+                    const sessions = await res.json();
+                    app.history = sessions; // Store for lookup
+
+                    const container = document.getElementById('history-list');
+                    container.innerHTML = '';
+
+                    if (sessions.length === 0) {
+                        container.innerHTML = '<div class="text-xs text-center p-2 text-text-muted-light">No history</div>';
+                        return;
+                    }
+
+                    sessions.forEach(s => {
+                        const div = document.createElement('div');
+                        const isActive = s.session_id === app.sessionId;
+                        div.className = `p-2 rounded cursor-pointer text-sm truncate flex items-center gap-2 ${isActive ? 'bg-primary/10 text-primary font-medium' : 'text-text-muted-light hover:bg-gray-100 dark:hover:bg-gray-800'}`;
+                        div.onclick = () => app.switchSession(s.session_id);
+                        div.innerHTML = `<span class="material-icons-round text-xs">${isActive ? 'chat_bubble' : 'chat_bubble_outline'}</span> ${s.title || 'Untitled'}`;
+                        container.appendChild(div);
+                    });
+                } catch (e) {
+                    console.error("Load History Error", e);
+                    document.getElementById('history-list').innerHTML = `<div class="text-xs text-red-500 p-2">Error: ${e.message}</div>`;
+                }
+            },
+
+            switchSession: async (sid) => {
+                app.sessionId = sid;
+                app.updateUrl(sid);
+                document.getElementById('chat-messages').innerHTML = '';
+                await app.loadChatHistory();
+                await app.loadHistoryList(); // Update active state UI
+
+                // Update Header Title
+                try {
+                    const sess = app.history.find(s => s.session_id === sid);
+                    if (sess) {
+                        const titleEl = document.getElementById('chat-title');
+                        if (titleEl) titleEl.innerText = sess.title || "New Chat";
+                    }
+                } catch (e) { }
+            },
+
+            toggleTheme: () => {
+                const html = document.documentElement;
+                if (html.classList.contains('dark')) {
+                    html.classList.remove('dark');
+                    localStorage.theme = 'light';
+                } else {
+                    html.classList.add('dark');
+                    localStorage.theme = 'dark';
+                }
+            },
+
+            loadChatHistory: async () => {
+                const container = document.getElementById('chat-messages');
+                container.innerHTML = ''; // basic clear
+
+                // If new, show welcome
+                // Fetch logic...
+                try {
+                    const res = await fetch(`${API_URL}/history/${app.sessionId}/messages`);
+                    const msgs = await res.json();
+
+                    if (msgs.length === 0) {
+                        app.renderWelcome();
+                    } else {
+                        msgs.forEach(m => app.appendMessage(m.role, m.content, m.sources));
+                        app.scrollToBottom();
+                    }
+                } catch (e) { console.error(e); }
+            },
+
+            renderWelcome: () => {
+                document.getElementById('chat-messages').innerHTML = `
+                    <div class="flex flex-col items-center justify-center min-h-[50vh] text-center space-y-8 fade-in-up px-4">
+                        <div class="space-y-2">
+                            <h2 class="text-3xl font-bold text-text-main-light dark:text-text-main-dark">How can RAG Brain help today?</h2>
+                            <p class="text-text-muted-light dark:text-text-muted-dark max-w-lg mx-auto">Upload your documents and ask me anything. I can analyze PDFs, TXTs, and MD files instantly.</p>
+                        </div>
+                        
+                        <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-border-light dark:border-border-dark max-w-md w-full text-left space-y-4 hover:shadow-lg transition-shadow">
+                            <div class="flex items-start gap-4">
+                                <div class="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-primary flex-shrink-0">
+                                    <span class="material-icons-round">analytics</span>
+                                </div>
+                                <div>
+                                    <h3 class="font-semibold text-text-main-light dark:text-text-main-dark">Document Analysis</h3>
+                                    <p class="text-sm text-text-muted-light dark:text-text-muted-dark mt-1">Extract insights, summaries, and key points from your files.</p>
+                                </div>
+                            </div>
+                            <button onclick="app.openUploadModal()" class="w-full py-2.5 bg-primary hover:bg-primary-hover text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2">
+                                <span class="material-icons-round text-sm">upload_file</span>
+                                Upload Files
+                            </button>
+                        </div>
+                    </div>`;
+            },
+
+            sendMessage: async () => {
+                const input = document.getElementById('user-input');
+                const text = input.value.trim();
+                if (!text) return;
+
+                input.value = '';
+                input.style.height = 'auto'; // reset height
+
+                // 1. Optimistic Render
+                app.appendMessage('user', text);
+                app.scrollToBottom();
+
+                // Show Loading
+                const loadingId = app.appendLoading();
+                app.scrollToBottom();
+
+                // 2. Send API
+                try {
+                    await fetch(`${API_URL}/history/${app.sessionId}/messages`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ role: 'user', content: text })
+                    });
+
+                    const queryRes = await fetch(`${API_URL}/query`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ query_text: text, session_id: app.sessionId })
+                    });
+
+                    const data = await queryRes.json();
+
+                    // Remove loading
+                    document.getElementById(loadingId).remove();
+
+                    // Render AI
+                    app.appendMessage('assistant', data.answer, data.sources);
+
+                    // Save AI msg background logic
+                    await fetch(`${API_URL}/history/${app.sessionId}/messages`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ role: 'assistant', content: data.answer, sources: data.sources })
+                    });
+
+                    app.loadHistoryList(); // Refresh title if first msg
+
+                } catch (e) {
+                    document.getElementById(loadingId).remove();
+                    app.appendMessage('assistant', "Sorry, I encountered an error.");
+                }
+            },
+
+            fetchTitleForSession: async (sid) => {
+                try {
+                    if (!sid) return;
+                    const res = await fetch(`${API_URL}/history/sessions`);
+                    if (res.ok) {
+                        const sessions = await res.json();
+                        const s = sessions.find(x => x.session_id === sid);
+                        if (s && s.title) {
+                            const titleEl = document.getElementById('chat-title');
+                            if (titleEl) titleEl.innerText = s.title;
+                        }
+                    }
+                } catch (e) { console.error("Fetch Title Error", e); }
+            },
+
+            appendMessage: (role, text, sources) => {
+                const container = document.getElementById('chat-messages');
+                // Remove welcome if present
+                if (container.querySelector('.min-h-\\[50vh\\]')) container.innerHTML = '';
+
+                const div = document.createElement('div');
+                div.className = `flex ${role === 'user' ? 'justify-end' : 'justify-start'} w-full`;
+
+                const bubble = document.createElement('div');
+                bubble.className = `max-w-[85%] lg:max-w-[75%] p-4 rounded-2xl shadow-sm space-y-2 ${role === 'user' ? 'bg-primary text-white' : 'bg-white dark:bg-gray-800 border border-border-light dark:border-border-dark'}`;
+
+                // Markdown Parse
+                const htmlContent = marked.parse(text);
+                bubble.innerHTML = `<div class="prose dark:prose-invert text-sm">${htmlContent}</div>`;
+
+                if (sources && sources.length > 0) {
+                    const sourcesHtml = sources.map(s => {
+                        // Safely access metadata
+                        const meta = s.node ? s.node.metadata : (s.metadata || {});
+                        const filename = meta.filename || s.filename || 'Unknown';
+                        const page = meta.page_label || s.page_label || '?';
+
+                        // Clean Text
+                        const cleanText = s.text.replace(/\s+/g, ' ').substring(0, 100).trim();
+
+                        // Args for viewDocument
+                        const sessionArg = meta.session_id ? `'${meta.session_id}'` : 'null';
+                        const filenameEsc = filename.replace(/'/g, "\\'");
+                        const queryEsc = cleanText.replace(/'/g, "\\'");
+
+                        return `
+                        <div class="text-xs bg-gray-50 dark:bg-gray-900 p-2 rounded border border-gray-200 dark:border-gray-700 mt-2 flex justify-between items-center group">
+                            <div class="truncate flex-1">
+                                <div class="font-medium truncate" title="${filename}">${filename} (Pg ${page})</div>
+                                <div class="opacity-70 truncate text-[10px]">${cleanText}...</div>
+                            </div>
+                            <button onclick="app.viewDocument('${filenameEsc}', ${page}, '${queryEsc}', ${sessionArg})" class="text-blue-500 hover:text-blue-700 ml-2 px-2 py-1 bg-white dark:bg-gray-800 border rounded shadow-sm text-[10px] flex items-center gap-1 hover:bg-gray-50 cursor-pointer transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                View Context
+                            </button>
+                        </div>`;
+                    }).join('');
+
+                    bubble.innerHTML += `<div class="mt-2 space-y-1 border-t border-gray-200 dark:border-gray-700 pt-2">${sourcesHtml}</div>`;
+                }
+
+                div.appendChild(bubble);
+                container.appendChild(div);
+            },
+
+            viewDocument: async (filename, page, query, sessionId) => {
+                const modal = document.getElementById('doc-viewer-modal');
+                const img = document.getElementById('doc-viewer-image');
+                const textDiv = document.getElementById('doc-viewer-text');
+                const loader = document.getElementById('doc-viewer-loader');
+                const errDiv = document.getElementById('doc-viewer-error');
+
+                // Reset State
+                modal.classList.remove('hidden');
+                img.classList.add('hidden');
+                loader.classList.remove('hidden');
+                errDiv.classList.add('hidden');
+                document.getElementById('doc-viewer-title').innerText = filename;
+                document.getElementById('doc-viewer-subtitle').innerText = `Page ${page}`;
+                textDiv.innerText = "Loading text...";
+
+                try {
+                    // Fetch Context
+                    let url = `/api/v1/documents/${encodeURIComponent(filename)}/context?page=${page}&query=${encodeURIComponent(query)}`;
+                    if (sessionId) url += `&session_id=${sessionId}`;
+
+                    console.log("Fetching Context:", url);
+                    const res = await fetch(url);
+                    if (!res.ok) {
+                        const errText = await res.text();
+                        throw new Error(`API Error (${res.status}): ${errText}`);
+                    }
+                    const data = await res.json();
+
+                    // Helper to render a page block
+                    const renderPage = (pData, label) => {
+                        if (!pData || !pData.image) return '';
+
+                        const imgSrc = `data:image/jpeg;base64,${pData.image}`;
+
+                        return `
+                            <div class="mb-8 border-b border-gray-200 dark:border-gray-700 pb-8 last:border-0 last:pb-0">
+                                <h4 class="text-xs font-bold uppercase tracking-wider opacity-60 mb-3 sticky top-0 bg-gray-100 dark:bg-gray-950 py-2 z-10 flex items-center gap-2">
+                                    <span class="w-2 h-2 rounded-full ${label.includes('Current') ? 'bg-primary' : 'bg-gray-400'}"></span>
+                                    ${label} (Page ${pData.number || '?'})
+                                </h4>
+                                <div class="relative shadow-sm bg-white border border-gray-200 dark:border-gray-700">
+                                    <img src="${imgSrc}" class="w-full h-auto block" alt="${label}" />
+                                </div>
+                            </div>
+                        `;
+                    };
+
+                    // Clear Loader
+                    loader.classList.add('hidden');
+
+                    // Combine Pages
+                    let html = '';
+                    if (data.prev_page) html += renderPage(data.prev_page, 'Previous Page');
+                    if (data.current_page) html += renderPage(data.current_page, 'Current Page');
+                    if (data.next_page) html += renderPage(data.next_page, 'Next Page');
+
+                    if (!html) {
+                        errDiv.classList.remove('hidden');
+                        document.getElementById('doc-viewer-error-msg').innerText = "No content returned from server.";
+                    } else {
+                        // Inject HTML into the content container
+                        const contentDiv = document.getElementById('doc-viewer-content');
+                        if (contentDiv) {
+                            contentDiv.innerHTML = html;
+                            contentDiv.classList.remove('hidden');
+                        }
+
+                        // Hide the Sidebar Text div (since we embedded text)
+                        if (document.getElementById('doc-viewer-text')) {
+                            document.getElementById('doc-viewer-text').parentElement.classList.add('hidden');
+                        }
+                    }
+                } catch (e) {
+                    console.error("View Error", e);
+                    errDiv.classList.remove('hidden');
+                    document.getElementById('doc-viewer-error-msg').innerText = e.message || "Could not load document";
+                    loader.classList.add('hidden');
+                }
+            },
+
+            appendLoading: () => {
+                const id = 'loading-' + Date.now();
+                const container = document.getElementById('chat-messages');
+                const div = document.createElement('div');
+                div.id = id;
+                div.className = "flex justify-start w-full";
+                div.innerHTML = `
+                    <div class="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-border-light dark:border-border-dark shadow-sm">
+                        <div class="flex gap-1">
+                            <div class="w-2 h-2 bg-gray-400 rounded-full typing-dot"></div>
+                            <div class="w-2 h-2 bg-gray-400 rounded-full typing-dot"></div>
+                            <div class="w-2 h-2 bg-gray-400 rounded-full typing-dot"></div>
+                        </div>
+                    </div>`;
+                container.appendChild(div);
+                return id;
+            },
+
+            handleInputKey: (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    app.sendMessage();
+                }
+            },
+
+            scrollToBottom: () => {
+                const scroller = document.getElementById('chat-scroller');
+                scroller.scrollTop = scroller.scrollHeight;
+            },
+
+            newChat: () => { app.createSession(); },
+
+            showChat: () => {
+                // Already on chat interface, maybe just reset or focus?
+                document.getElementById('user-input').focus();
+            },
+
+            clearHistory: async () => {
+                const confirmed = confirm("Are you sure you want to clear all history? This cannot be undone.");
+                if (!confirmed) return;
+
+                // Call API to clear (assuming endpoint exists or just clear local session)
+                // Since user has no specific clear endpoint in history.html logic, we might need one.
+                // For now, let's just create a new session and maybe clear UI list if possible.
+                // Actually, Step 5300 Sidebar had "Clear History".
+                // I will implements a basic client-side clear for now or just new session.
+                app.newChat();
+                // Optionally clear history list UI
+                document.getElementById('history-list').innerHTML = '<div class="text-xs text-center p-2 text-text-muted-light">History Cleared</div>';
+            },
+
+            openUploadModal: () => document.getElementById('upload-modal').classList.remove('hidden'),
+            closeUploadModal: () => document.getElementById('upload-modal').classList.add('hidden'),
+
+            handleFileUpload: async (files) => {
+                if (!files || !files.length) return;
+                app.openUploadModal(); // Show status
+                const status = document.getElementById('upload-status');
+                status.innerHTML = '<div class="text-blue-500 animate-pulse font-medium">Uploading...</div>';
+
+                const uploadedNames = [];
+                const errors = [];
+
+                for (let file of files) {
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    try {
+                        const res = await fetch(`${API_URL}/upload?session_id=${app.sessionId}`, {
+                            method: 'POST', body: formData
+                        });
+                        if (!res.ok) throw new Error("Upload Failed");
+
+                        uploadedNames.push(file.name);
+                        status.innerHTML += `<div class="text-green-500 text-sm flex items-center gap-1"><span class="material-icons-round text-sm">check_circle</span> ${file.name} Uploaded</div>`;
+                    } catch (e) {
+                        console.error(e);
+                        errors.push(file.name);
+                        status.innerHTML += `<div class="text-red-500 text-sm flex items-center gap-1"><span class="material-icons-round text-sm">error</span> ${file.name} Failed</div>`;
+                    }
+                }
+
+                // Wait a moment for user to see checkmarks
+                if (uploadedNames.length > 0) {
+                    setTimeout(async () => {
+                        app.closeUploadModal();
+
+                        // Hide the upload button to prevent interference
+                        const uploadBtn = document.getElementById('upload-doc-btn');
+                        if (uploadBtn) upload.style.display = 'none';
+
+                        // Construct Summary Message
+                        // Sort alphabetically
+                        uploadedNames.sort((a, b) => a.localeCompare(b));
+
+                        let fileListStr = "";
+                        if (uploadedNames.length <= 5) {
+                            fileListStr = uploadedNames.map((n, i) => `${i + 1}. ${n}`).join('\n');
+                        } else {
+                            const firstFive = uploadedNames.slice(0, 5).map((n, i) => `${i + 1}. ${n}`).join('\n');
+                            const remaining = uploadedNames.length - 5;
+                            fileListStr = `${firstFive}\n...and ${remaining} others`;
+                        }
+
+                        const systemMsg = `The following documents have been ingested for this chat:\n${fileListStr}`;
+
+                        // Render locally as Assistant (System) message
+                        app.appendMessage('assistant', systemMsg);
+
+                        // Persist to DB
+                        try {
+                            await fetch(`${API_URL}/history/${app.sessionId}/messages`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ role: 'assistant', content: systemMsg, sources: [] })
+                            });
+                        } catch (e) { console.error("Failed to save system msg", e); }
+
+                    }, 1500); // 1.5s delay to read status
+                }
+            }
+        };
+
+        // Init
+        document.addEventListener('DOMContentLoaded', () => {
+            app.init();
+        });
+    </script>
+    <!-- Document Viewer Modal -->
+    <div id="doc-viewer-modal"
+        class="fixed inset-0 z-[100] hidden bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div
+            class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
+            <!-- Header -->
+            <div
+                class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900">
+                <div>
+                    <h3 id="doc-viewer-title" class="font-semibold text-lg text-gray-900 dark:text-gray-100">Document
+                        View</h3>
+                    <p id="doc-viewer-subtitle" class="text-xs opacity-60">Loading context...</p>
+                </div>
+                <button onclick="document.getElementById('doc-viewer-modal').classList.add('hidden')"
+                    class="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors">
+                    <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Content -->
+            <div class="flex-1 overflow-hidden p-0 flex flex-col lg:flex-row h-full">
+                <!-- Image Panel -->
+                <div class="flex-1 bg-gray-100 dark:bg-gray-950 relative overflow-auto p-4 min-h-[50vh]">
+                    <!-- Dynamic Content Container -->
+                    <div id="doc-viewer-content" class="w-full max-w-4xl mx-auto hidden pb-20"></div>
+
+                    <!-- Legacy/Fallback Image -->
+                    <img id="doc-viewer-image" class="max-w-none shadow-lg hidden mx-auto mt-10 origin-top"
+                        alt="Document Page" />
+
+                    <div id="doc-viewer-loader"
+                        class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                        <div
+                            class="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mb-3">
+                        </div>
+                        <span class="text-sm font-medium opacity-60">Rendering Page...</span>
+                    </div>
+
+                    <div id="doc-viewer-error"
+                        class="hidden absolute inset-0 flex flex-col items-center justify-center text-red-500 text-center p-8 z-50 bg-white/90 dark:bg-gray-900/90">
+                        <svg class="w-12 h-12 mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
+                            </path>
+                        </svg>
+                        <p class="font-bold text-lg">Unable to Load</p>
+                        <p id="doc-viewer-error-msg" class="text-sm opacity-80 mt-1 max-w-md"></p>
+                    </div>
+                </div>
+
+                <!-- Text Panel -->
+                <div
+                    class="w-full lg:w-1/3 min-w-[300px] flex flex-col border-t lg:border-t-0 lg:border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 h-[30vh] lg:h-auto">
+                    <div class="px-4 py-2 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+                        <h4 class="text-xs font-bold uppercase tracking-wider opacity-60">Extracted Text Content</h4>
+                    </div>
+                    <div id="doc-viewer-text"
+                        class="flex-1 text-xs font-mono whitespace-pre-wrap overflow-y-auto p-4 text-gray-700 dark:text-gray-300 leading-relaxed">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

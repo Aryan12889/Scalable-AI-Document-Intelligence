@@ -1,4 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query
+from typing import List
+from pydantic import BaseModel
+import datetime
 import fitz # PyMuPDF
 import pathlib
 import base64
@@ -6,7 +9,71 @@ import os
 
 router = APIRouter()
 
-UPLOAD_DIR = pathlib.Path("/app/data/uploads")
+# Robust Path Resolution
+BASE_DIR = pathlib.Path(__file__).resolve().parent.parent.parent.parent # app/api/endpoints -> app -> root
+DATA_DIR = BASE_DIR / "data"
+
+# Fallback for Docker/Production if needed, but relative path is safer for hybrid
+if not DATA_DIR.exists() and pathlib.Path("/app/data").exists():
+    DATA_DIR = pathlib.Path("/app/data")
+
+UPLOAD_DIR = DATA_DIR / "uploads"
+STATIC_DIR = DATA_DIR / "static"
+
+class DocumentResponse(BaseModel):
+    filename: str
+    size: int
+    upload_date: str
+    session_id: str
+    status: str
+
+@router.get("/documents", response_model=List[DocumentResponse])
+async def list_documents():
+    """List all uploaded documents (uploads and static)."""
+    print(f"DEBUG: Scanning for documents...")
+    print(f"DEBUG: BASE_DIR: {BASE_DIR}")
+    print(f"DEBUG: DATA_DIR: {DATA_DIR} (Exists: {DATA_DIR.exists()})")
+    print(f"DEBUG: UPLOAD_DIR: {UPLOAD_DIR} (Exists: {UPLOAD_DIR.exists()})")
+    print(f"DEBUG: STATIC_DIR: {STATIC_DIR} (Exists: {STATIC_DIR.exists()})")
+    
+    docs = []
+    
+    # 1. Scan Static Files (Permanent)
+    if STATIC_DIR.exists():
+        for file_path in STATIC_DIR.iterdir():
+            if file_path.is_file():
+                try:
+                    stat = file_path.stat()
+                    docs.append(DocumentResponse(
+                        filename=file_path.name,
+                        size=stat.st_size,
+                        upload_date=datetime.datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d"),
+                        session_id="static", # Special ID for static files
+                        status="Ready"
+                    ))
+                except Exception as e:
+                    print(f"Error reading static file {file_path}: {e}")
+
+    # 2. Scan Uploads (Session-based)
+    if UPLOAD_DIR.exists():
+        for session_dir in UPLOAD_DIR.iterdir():
+            if session_dir.is_dir():
+                session_id = session_dir.name
+                for file_path in session_dir.iterdir():
+                    if file_path.is_file():
+                        try:
+                            stat = file_path.stat()
+                            docs.append(DocumentResponse(
+                                filename=file_path.name,
+                                size=stat.st_size,
+                                upload_date=datetime.datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d"),
+                                session_id=session_id,
+                                status="Processed"
+                            ))
+                        except Exception as e:
+                            print(f"Error reading upload file {file_path}: {e}")
+                            
+    return docs
 
 @router.get("/documents/{filename}/context")
 async def get_document_context(

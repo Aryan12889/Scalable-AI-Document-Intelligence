@@ -1,12 +1,14 @@
 import os
 from celery import Celery
 
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+# Default to memory for local dev (Windows) if Redis not set
+DEFAULT_BROKER = "memory://"
+REDIS_URL = os.getenv("REDIS_URL", DEFAULT_BROKER)
 
 celery_app = Celery(
     "worker",
     broker=REDIS_URL,
-    backend=REDIS_URL,
+    backend="rpc://",
     include=["app.workers.tasks"]
 )
 

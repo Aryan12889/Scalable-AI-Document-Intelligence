@@ -70,8 +70,12 @@ graph TD
     - **Session Isolation**: User uploads are logically and physically isolated by Session UUID.
     - **Permanent Knowledge**: Static docs support via `ingest_static` script.
 - **High-Fidelity UI**: 
-    - **Context Popup**: View actual **PDF page images** with precise yellow highlighting of cited text.
-    - **Design**: Modern glassmorphism layout with efficient space usage (Collapsed Uploader).
+    - **Analytics Dashboard**: Real-time insights into token usage, query latency, and system trends with interactive charts.
+    - **Chat History**: Persistent session management allows you to revisit past conversations and manage your knowledge base.
+    - **Adaptive Dark Mode**: Fully responsive dark/light mode with system preference sync and persistence.
+    - **Context Popup**: View actual **PDF page images** for verification.
+    - **Unified Experience**: Consistent circular FAB navigation and styling across all subsystems (Chat, History, Insights).
+    - **Design**: Modern glassmorphism layout with efficient space usage.
 - **Scalability**: 
     - **Dockerized**: Full hot-reloading support.
     - **Async**: Celery + Redis + Beat Scheduler for robust background processing.
@@ -115,7 +119,8 @@ docker exec rag_api python app/scripts/cleanup_sessions.py --force
 - `POST /api/v1/query`: RAG Query.
 - `GET /health`: System health.
 
-## Future Roadmap (v1.3)
-- [ ] **Chat History Persistence**: Store chat logs in SQLite/Postgres.
-- [ ] **Hybrid Search**: Implement Sparse Vectors (BM25/SPLADE) alongside Dense vectors.
-- [ ] **User Authentication**: Simple username/password login.
+## Future Roadmap (v1.4)
+- [ ] **Chat History Persistence**: Store chat logs in SQLite/Postgres to replace file-based storage.
+- [ ] **Hybrid Search**: Implement Sparse Vectors (BM25/SPLADE) alongside Dense vectors for better keyword matching.
+- [ ] **User Authentication**: Simple username/password login for multi-user support.
+- [ ] **Mobile Optimization**: Refine responsive layout for smaller screens and touch interactions.

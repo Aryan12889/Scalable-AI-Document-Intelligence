@@ -15,6 +15,7 @@ dependencies = [
     "qdrant-client>=1.7.0",
     "llama-index>=0.10.0",
     "llama-index-llms-gemini",
+    "llama-index-llms-google-genai",
     "llama-index-embeddings-gemini",
     "llama-index-vector-stores-qdrant",
     "llama-index-readers-file",

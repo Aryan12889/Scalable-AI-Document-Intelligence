@@ -22,4 +22,4 @@ COPY frontend /app/frontend
 ENV PYTHONUNBUFFERED=1
 
 # Default Command (API) - can be overridden in compose
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--loop", "asyncio"]

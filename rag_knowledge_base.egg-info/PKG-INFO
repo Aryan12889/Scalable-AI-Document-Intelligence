@@ -1,0 +1,28 @@
+Metadata-Version: 2.4
+Name: rag_knowledge_base
+Version: 0.1.0
+Summary: High-level, scalable RAG Knowledge Base application
+Requires-Python: >=3.10
+Requires-Dist: fastapi>=0.100.0
+Requires-Dist: uvicorn[standard]>=0.20.0
+Requires-Dist: celery[redis]>=5.3.0
+Requires-Dist: redis>=5.0.0
+Requires-Dist: qdrant-client>=1.7.0
+Requires-Dist: llama-index>=0.10.0
+Requires-Dist: llama-index-llms-gemini
+Requires-Dist: llama-index-embeddings-gemini
+Requires-Dist: llama-index-vector-stores-qdrant
+Requires-Dist: llama-index-readers-file
+Requires-Dist: pydantic>=2.0.0
+Requires-Dist: pydantic-settings>=2.0.0
+Requires-Dist: python-multipart
+Requires-Dist: arize-phoenix>=1.0.0
+Requires-Dist: openinference-instrumentation-llama-index
+Requires-Dist: opentelemetry-exporter-otlp
+Requires-Dist: streamlit>=1.30.0
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"
+Requires-Dist: pytest-asyncio; extra == "dev"
+Requires-Dist: httpx; extra == "dev"
+Requires-Dist: bandit; extra == "dev"
+Requires-Dist: safety; extra == "dev"

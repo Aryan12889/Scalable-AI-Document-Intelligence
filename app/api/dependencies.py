@@ -3,7 +3,8 @@ from app.core.config import settings
 import redis
 import qdrant_client
 import os
-import google.generativeai as genai
+import os
+# import google.generativeai as genai # REMOVED: Deprecated and unused here
 
 router = APIRouter()
 

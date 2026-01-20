@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>RAG Brain - Manage Knowledge Base</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#3B82F6", // Modern Blue
+                        "primary-hover": "#2563EB",
+                        "background-light": "#F8FAFC",
+                        "background-dark": "#0F172A",
+                        "surface-light": "#FFFFFF",
+                        "surface-dark": "#1E293B",
+                        "border-light": "#E2E8F0",
+                        "border-dark": "#334155",
+                        "text-main-light": "#0F172A",
+                        "text-main-dark": "#F8FAFC",
+                        "text-muted-light": "#64748B",
+                        "text-muted-dark": "#94A3B8",
+                    },
+                    fontFamily: {
+                        sans: ["Inter", "sans-serif"],
+                        mono: ["JetBrains Mono", "monospace"],
+                    },
+                    boxShadow: {
+                        'soft': '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+                        'glow': '0 0 15px rgba(59, 130, 246, 0.3)',
+                    }
+                },
+            },
+        };
+    </script>
+    <style>
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+
+        .dark ::-webkit-scrollbar-thumb {
+            background: #475569;
+        }
+
+        .fade-in-up {
+            animation: fadeInUp 0.5s ease-out forwards;
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+
+<body
+    class="bg-background-light dark:bg-background-dark text-text-main-light dark:text-text-main-dark font-sans antialiased h-screen flex overflow-hidden selection:bg-primary selection:text-white">
+    <aside
+        class="w-20 lg:w-72 flex-shrink-0 bg-surface-light dark:bg-surface-dark border-r border-border-light dark:border-border-dark flex flex-col justify-between transition-all duration-300 z-20">
+        <div>
+            <div class="h-16 flex items-center px-4 lg:px-6 border-b border-border-light dark:border-border-dark">
+                <div class="flex items-center gap-3">
+                    <div
+                        class="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center shadow-lg text-white">
+                        <span class="material-icons-round text-xl">psychology</span>
+                    </div>
+                    <span class="font-bold text-lg hidden lg:block tracking-tight">RAG Brain</span>
+                </div>
+            </div>
+            <nav class="p-3 space-y-2 mt-4">
+                <a class="flex items-center gap-3 px-3 py-2.5 text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg group relative transition-colors"
+                    href="/">
+                    <span class="material-icons-round">chat_bubble_outline</span>
+                    <span class="font-medium hidden lg:block">Chat Interface</span>
+                    <div
+                        class="absolute left-14 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 lg:hidden transition-opacity whitespace-nowrap z-50 pointer-events-none">
+                        Chat Interface
+                    </div>
+                </a>
+                <!-- Knowledge Base Link Removed -->
+                <a class="flex items-center gap-3 px-3 py-2.5 text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg group relative transition-colors"
+                    href="history.html">
+                    <span class="material-icons-round">history</span>
+                    <span class="font-medium hidden lg:block">History</span>
+                    <div
+                        class="absolute left-14 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 lg:hidden transition-opacity whitespace-nowrap z-50 pointer-events-none">
+                        History
+                    </div>
+                </a>
+                <a class="flex items-center gap-3 px-3 py-2.5 text-text-muted-light dark:text-text-muted-dark hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg group relative transition-colors"
+                    href="analytics.html">
+                    <span class="material-icons-round">analytics</span>
+                    <span class="font-medium hidden lg:block">Insights</span>
+                    <div
+                        class="absolute left-14 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 lg:hidden transition-opacity whitespace-nowrap z-50 pointer-events-none">
+                        Insights
+                    </div>
+                </a>
+            </nav>
+        </div>
+        <div class="p-4 border-t border-border-light dark:border-border-dark">
+            <div id="storage-container" class="hidden lg:block mb-4">
+                <div
+                    class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 border border-border-light dark:border-border-dark">
+                    <div class="flex items-center justify-between mb-2">
+                        <span
+                            class="text-xs font-semibold uppercase tracking-wider text-text-muted-light dark:text-text-muted-dark flex items-center gap-1">
+                            <span class="material-icons-round text-sm">cloud_queue</span> Storage
+                        </span>
+                        <span id="storage-percent" class="text-xs font-bold text-primary">0%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 mb-2">
+                        <div id="storage-bar" class="bg-primary h-1.5 rounded-full" style="width: 0%"></div>
+                    </div>
+                    <div class="flex justify-between text-[10px] text-text-muted-light dark:text-text-muted-dark">
+                        <span id="storage-used">0GB used</span>
+                        <span>5GB total</span>
+                    </div>
+                </div>
+            </div>
+
+            <script>
+                async function updateStorage() {
+                    try {
+                        const res = await fetch('/api/v1/admin/storage');
+                        if (res.ok) {
+                            const data = await res.json();
+                            const percent = Math.min(data.percentage, 100);
+                            document.getElementById('storage-percent').textContent = `${percent}%`;
+                            document.getElementById('storage-bar').style.width = `${percent}%`;
+                            document.getElementById('storage-used').textContent = `${data.used_formatted} used`;
+                        }
+                    } catch (e) {
+                        console.error('Storage fetch error', e);
+                    }
+                }
+                updateStorage();
+            </script>
+        </div>
+    </aside>
+    <main class="flex-1 flex flex-col h-full relative z-10 bg-background-light dark:bg-background-dark overflow-hidden">
+        <header
+            class="h-16 bg-surface-light/80 dark:bg-surface-dark/80 backdrop-blur-md border-b border-border-light dark:border-border-dark flex items-center justify-between px-6 sticky top-0 z-30 flex-shrink-0">
+            <div class="flex items-center gap-4">
+                <h1 class="text-lg font-semibold text-text-main-light dark:text-text-main-dark">Manage Knowledge Base
+                </h1>
+                <span
+                    class="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-xs font-medium">System
+                    Online</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <button
+                    class="flex items-center gap-2 px-4 py-2 text-text-muted-light dark:text-text-muted-dark hover:text-primary transition-colors text-sm font-medium">
+                    <span class="material-icons-round text-lg">help_outline</span>
+                    <span class="hidden sm:inline">Documentation</span>
+                </button>
+                <button onclick="window.location.href='/'"
+                    class="flex items-center gap-2 px-4 py-2 bg-primary text-white hover:bg-primary-hover border border-transparent rounded-lg text-sm font-medium transition-all shadow-sm hover:shadow-md">
+                    <span class="material-icons-round text-lg">chat</span>
+                    <span class="hidden sm:inline">Go to Chat</span>
+                </button>
+            </div>
+        </header>
+        <div class="flex-1 overflow-y-auto p-6 lg:p-10 scroll-smooth">
+            <div class="max-w-7xl mx-auto space-y-6 fade-in-up">
+                <div class="flex flex-col sm:flex-row justify-between items-center gap-4 pt-4">
+                    <div class="relative w-full sm:w-96 group">
+                        <span class="absolute left-3 top-2.5 text-text-muted-light dark:text-text-muted-dark">
+                            <span class="material-icons-round text-lg">search</span>
+                        </span>
+                        <input id="search-input"
+                            class="w-full pl-10 pr-4 py-2.5 bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-lg text-sm text-text-main-light dark:text-text-main-dark focus:ring-2 focus:ring-primary/50 focus:border-primary transition-shadow placeholder-text-muted-light dark:placeholder-text-muted-dark"
+                            placeholder="Search documents..." type="text" />
+                    </div>
+                    <div class="flex items-center gap-3 w-full sm:w-auto">
+                        <select id="type-filter"
+                            class="form-select pl-3 pr-8 py-2.5 bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-lg text-sm text-text-main-light dark:text-text-main-dark focus:ring-2 focus:ring-primary/50 focus:border-primary cursor-pointer">
+                            <option>All Types</option>
+                            <option>PDF Documents</option>
+                            <option>Text Files</option>
+                            <option>Markdown</option>
+                        </select>
+                        <button id="refresh-btn"
+                            class="p-2.5 bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-lg text-text-muted-light dark:text-text-muted-dark hover:text-primary hover:border-primary transition-colors"
+                            title="Refresh List">
+                            <span class="material-icons-round text-lg">refresh</span>
+                        </button>
+                    </div>
+                </div>
+                <div
+                    class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl shadow-soft overflow-visible">
+                    <div class="overflow-x-auto pb-24">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr
+                                    class="bg-gray-50/50 dark:bg-gray-800/50 border-b border-border-light dark:border-border-dark text-xs uppercase tracking-wider text-text-muted-light dark:text-text-muted-dark font-medium select-none">
+                                    <th class="px-6 py-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors group"
+                                        onclick="app.sortTable('filename')">
+                                        <div class="flex items-center gap-1">Filename <span
+                                                class="material-icons-round text-base opacity-0 group-hover:opacity-50 transition-opacity"
+                                                id="sort-filename">arrow_upward</span></div>
+                                    </th>
+                                    <th class="px-6 py-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors group"
+                                        onclick="app.sortTable('ext')">
+                                        <div class="flex items-center gap-1">Type <span
+                                                class="material-icons-round text-base opacity-0 group-hover:opacity-50 transition-opacity"
+                                                id="sort-ext">arrow_upward</span></div>
+                                    </th>
+                                    <th class="px-6 py-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors group"
+                                        onclick="app.sortTable('size')">
+                                        <div class="flex items-center gap-1">Size <span
+                                                class="material-icons-round text-base opacity-0 group-hover:opacity-50 transition-opacity"
+                                                id="sort-size">arrow_upward</span></div>
+                                    </th>
+                                    <th class="px-6 py-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors group"
+                                        onclick="app.sortTable('upload_date')">
+                                        <div class="flex items-center gap-1">Upload Date <span
+                                                class="material-icons-round text-base opacity-0 group-hover:opacity-50 transition-opacity"
+                                                id="sort-upload_date">arrow_upward</span></div>
+                                    </th>
+                                    <th class="px-6 py-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors group"
+                                        onclick="app.sortTable('session_id')">
+                                        <div class="flex items-center gap-1">Session <span
+                                                class="material-icons-round text-base opacity-0 group-hover:opacity-50 transition-opacity"
+                                                id="sort-session_id">arrow_upward</span></div>
+                                    </th>
+                                    <th class="px-6 py-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors group"
+                                        onclick="app.sortTable('status')">
+                                        <div class="flex items-center gap-1">Status <span
+                                                class="material-icons-round text-base opacity-0 group-hover:opacity-50 transition-opacity"
+                                                id="sort-status">arrow_upward</span></div>
+                                    </th>
+                                    <th class="px-6 py-4 text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-border-light dark:divide-border-dark text-sm">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    <button
+        class="fixed bottom-6 right-6 p-3 rounded-full bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark shadow-lg text-text-muted-light dark:text-text-muted-dark hover:text-primary z-40 transition-transform hover:scale-110"
+        onclick="app.toggleTheme()">
+        <span class="material-icons-round dark:hidden">dark_mode</span>
+        <span class="material-icons-round hidden dark:block">light_mode</span>
+    </button>
+
+    <script>
+        const API_URL = "/api/v1";
+        const app = {
+            documents: [],
+            sortState: { key: 'upload_date', dir: 'desc' },
+
+            init: async () => {
+                // Theme Logic
+                const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+                function updateTheme(e) {
+                    if (!('theme' in localStorage)) {
+                        if (e.matches) {
+                            document.documentElement.classList.add('dark');
+                        } else {
+                            document.documentElement.classList.remove('dark');
+                        }
+                    }
+                }
+
+                if (localStorage.theme === 'dark' || (!('theme' in localStorage) && darkModeQuery.matches)) {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+
+                darkModeQuery.addEventListener('change', updateTheme);
+
+                document.getElementById('search-input').addEventListener('input', app.handleFilter);
+                document.getElementById('type-filter').addEventListener('change', app.handleFilter);
+                document.getElementById('refresh-btn').onclick = app.loadDocuments;
+                await app.loadDocuments();
+            },
+
+            toggleTheme: () => {
+                const html = document.documentElement;
+                if (html.classList.contains('dark')) {
+                    html.classList.remove('dark');
+                    localStorage.theme = 'light';
+                } else {
+                    html.classList.add('dark');
+                    localStorage.theme = 'dark';
+                }
+            },
+
+            handleFilter: () => {
+                const query = document.getElementById('search-input').value.toLowerCase();
+                const type = document.getElementById('type-filter').value;
+
+                let filtered = app.documents.filter(doc => {
+                    if (!doc.filename.toLowerCase().includes(query)) return false;
+                    if (type === 'PDF Documents' && !doc.filename.toLowerCase().endsWith('.pdf')) return false;
+                    if (type === 'Text Files' && !doc.filename.toLowerCase().endsWith('.txt')) return false;
+                    if (type === 'Markdown' && !doc.filename.toLowerCase().endsWith('.md')) return false;
+                    return true;
+                });
+
+                // Enhance docs with extension for sorting
+                filtered.forEach(d => d.ext = d.filename.split('.').pop().toUpperCase());
+
+                app.sortAndRender(filtered);
+            },
+
+            loadDocuments: async () => {
+                const tbody = document.querySelector('tbody');
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center p-8 text-text-muted-light typing-dot">Loading documents...</td></tr>';
+
+                try {
+                    const res = await fetch(`${API_URL}/documents`);
+                    if (!res.ok) throw new Error("Failed to load");
+                    app.documents = await res.json();
+
+                    // Initial Sort
+                    app.handleFilter();
+                } catch (e) {
+                    tbody.innerHTML = `<tr><td colspan="7" class="text-center p-8 text-red-500">Error loading documents: ${e.message}</td></tr>`;
+                }
+            },
+
+            sortTable: (key) => {
+                if (app.sortState.key === key) {
+                    app.sortState.dir = app.sortState.dir === 'asc' ? 'desc' : 'asc';
+                } else {
+                    app.sortState.key = key;
+                    app.sortState.dir = 'asc';
+                }
+                app.handleFilter(); // Re-filter and sort
+            },
+
+            sortAndRender: (docs) => {
+                const { key, dir } = app.sortState;
+                const multiplier = dir === 'asc' ? 1 : -1;
+
+                docs.sort((a, b) => {
+                    let valA = a[key] || '';
+                    let valB = b[key] || '';
+
+                    if (typeof valA === 'string') valA = valA.toLowerCase();
+                    if (typeof valB === 'string') valB = valB.toLowerCase();
+
+                    if (valA < valB) return -1 * multiplier;
+                    if (valA > valB) return 1 * multiplier;
+                    return 0;
+                });
+
+                app.updateSortIcons();
+                app.renderTable(docs);
+            },
+
+            updateSortIcons: () => {
+                // Reset all
+                document.querySelectorAll('[id^="sort-"]').forEach(el => {
+                    el.classList.remove('opacity-100', 'text-primary');
+                    el.classList.add('opacity-0');
+                    el.textContent = 'arrow_upward';
+                });
+
+                // Set active
+                const activeIcon = document.getElementById(`sort-${app.sortState.key}`);
+                if (activeIcon) {
+                    activeIcon.classList.remove('opacity-0');
+                    activeIcon.classList.add('opacity-100', 'text-primary');
+                    activeIcon.textContent = app.sortState.dir === 'asc' ? 'arrow_upward' : 'arrow_downward';
+                }
+            },
+
+            renderTable: (docs) => {
+                const tbody = document.querySelector('tbody');
+                if (docs.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center p-8 text-text-muted-light">No documents found. Upload files via the Chat Interface.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = docs.map(doc => {
+                    const isPdf = doc.filename.toLowerCase().endsWith('.pdf');
+                    const icon = isPdf ? 'picture_as_pdf' : 'description';
+                    const color = isPdf ? 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/30' : 'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30';
+
+                    // Session Display Logic
+                    let sessionDisplay = `<span class="inline-flex items-center px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 text-xs font-mono text-text-muted-light dark:text-text-muted-dark border border-gray-200 dark:border-gray-700">${doc.session_id.substring(0, 8)}...</span>`;
+                    if (doc.session_id === 'common' || doc.session_id === 'static' || doc.session_id.toLowerCase().includes('permanent')) {
+                        sessionDisplay = `<span class="inline-flex items-center px-2 py-1 rounded bg-purple-100 dark:bg-purple-900/30 text-xs font-bold text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">Pre Loaded</span>`;
+                    }
+
+                    return `
+                <tr class="group hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded ${color} flex items-center justify-center">
+                                <span class="material-icons-round text-lg">${icon}</span>
+                            </div>
+                            <span class="font-medium text-text-main-light dark:text-text-main-dark">${doc.filename}</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 text-text-muted-light dark:text-text-muted-dark">${doc.filename.split('.').pop().toUpperCase()}</td>
+                    <td class="px-6 py-4 text-text-muted-light dark:text-text-muted-dark">${app.formatBytes(doc.size)}</td>
+                    <td class="px-6 py-4 text-text-muted-light dark:text-text-muted-dark">${doc.upload_date}</td>
+                    <td class="px-6 py-4">${sessionDisplay}</td>
+                    <td class="px-6 py-4">
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> ${doc.status}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-right relative">
+                        <button class="text-text-muted-light dark:text-text-muted-dark hover:text-primary transition-colors p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded">
+                            <span class="material-icons-round">more_vert</span>
+                        </button>
+                    </td>
+                </tr>
+            `}).join('');
+            },
+
+            formatBytes: (bytes, decimals = 2) => {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const dm = decimals < 0 ? 0 : decimals;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+            }
+        };
+
+        window.addEventListener('load', app.init);
+    </script>
+</body>
+
+</html>

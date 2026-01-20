@@ -18,11 +18,21 @@ DATA_UPLOADS_DIR = "/app/data/uploads"
 QDRANT_HOST = os.getenv("QDRANT_HOST", "localhost")
 QDRANT_PORT = int(os.getenv("QDRANT_PORT", 6333))
 QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION_NAME", "knowledge_base")
-DEFAULT_MAX_AGE_SECONDS = 24 * 3600 # 24 Hours
+# 3 Weeks = 21 Days * 24 Hours * 3600 Seconds
+DEFAULT_MAX_AGE_SECONDS = 21 * 24 * 3600 
+
+# Ensure app module is in path for imports
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+try:
+    from app.db import get_session_last_active, delete_session
+except ImportError:
+    print("Warning: Could not import app.db, falling back to file mtime only.")
+    get_session_last_active = None
+    delete_session = None
 
 def cleanup_expired_sessions(max_age_seconds=DEFAULT_MAX_AGE_SECONDS):
     """
-    Physical cleanup of expired session data.
+    Physical cleanup of expired session data (Uploads + Vectors + DB Session).
     """
     print(f"Starting cleanup. Max Age: {max_age_seconds}s")
     
@@ -42,13 +52,24 @@ def cleanup_expired_sessions(max_age_seconds=DEFAULT_MAX_AGE_SECONDS):
 
     for session_dir in uploads_path.iterdir():
         if session_dir.is_dir():
-            # Check age
-            mtime = session_dir.stat().st_mtime
-            age = now - mtime
+            session_id = session_dir.name
+            
+            # Determine Age
+            last_active = None
+            if get_session_last_active:
+                last_active = get_session_last_active(session_id)
+            
+            if last_active:
+                age = now - last_active
+                source_type = "DB Activity"
+            else:
+                # Fallback to file mtime
+                mtime = session_dir.stat().st_mtime
+                age = now - mtime
+                source_type = "File MTime"
             
             if age > max_age_seconds:
-                session_id = session_dir.name
-                print(f"Session {session_id} is expired (Age: {age:.0f}s). Cleaning up...")
+                print(f"Session {session_id} is expired ({source_type}, Age: {age/86400:.1f} days). Cleaning up...")
                 
                 try:
                     # 1. Delete from Qdrant
@@ -70,6 +91,12 @@ def cleanup_expired_sessions(max_age_seconds=DEFAULT_MAX_AGE_SECONDS):
                     # 2. Delete from Disk
                     shutil.rmtree(session_dir)
                     print(f"  - Deleted files for {session_id}")
+                    
+                    # 3. Delete from DB (The critical new step)
+                    if delete_session:
+                        delete_session(session_id)
+                        print(f"  - Deleted DB session for {session_id}")
+                    
                     deleted_count += 1
                     
                 except Exception as e:
@@ -83,4 +110,15 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     threshold = 0 if args.force else DEFAULT_MAX_AGE_SECONDS
+    
+    # If force, also clear SQL DB history
+    if args.force:
+        try:
+            # Add parent dir to path to find app module
+            sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+            from app.db import clear_all_history
+            clear_all_history()
+        except Exception as e:
+            print(f"Error clearing DB history: {e}")
+
     cleanup_expired_sessions(max_age_seconds=threshold)
